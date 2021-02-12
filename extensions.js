@@ -66,12 +66,19 @@ MarkUp.addExtension({
 
 			if (prev === '') {
 				doc.links.push([title, link]);
-				let isInner = link.substr(0, 1) === '@';
+				let first = link.substr(0, 1);
+				let isInner = first === '@';
 				let content = MarkUp.parseLine(title, doc, 3, caches);
 				let key = 'link-' + generateRandomKey();
 				let ui = '<a href="';
 				if (isInner) {
 					ui = ui + '#' + link.substr(1, link.length) + '">';
+				}
+				else if (link.indexOf('@') > 1) {
+					ui = ui + 'mailto:' + link + '">';
+				}
+				else if (first === '.' || first === '\\' || first === '/') {
+					ui = ui + link + '">';
 				}
 				else {
 					ui = ui + link + '" target="_blank">';

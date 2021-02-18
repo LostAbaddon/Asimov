@@ -1803,7 +1803,7 @@
 	};
 	MarkUp.parse = (text, config) => {
 		var result;
-		result = MarkUp.fullParse(text, config);
+		result = MarkUp.fullParse(text + '\n', config);
 		if (!result) return '';
 		return result.content;
 	};

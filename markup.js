@@ -1350,10 +1350,15 @@
 						date = new Date(date);
 						let y = date.getYear() + 1900;
 						let m = date.getMonth() + 1;
+						if (m < 10) m = '0' + m;
 						let d = date.getDate();
+						if (d < 10) d = '0' + d;
 						let h = date.getHours();
+						if (h < 10) h = '0' + h;
 						let n = date.getMinutes();
+						if (n < 10) n = '0' + n;
 						let s = date.getSeconds();
+						if (s < 10) s = '0' + s;
 						date = y + '/' + m + '/' + d + ' ' + h + ':' + n + ':' + s;
 					}
 					ui += date;

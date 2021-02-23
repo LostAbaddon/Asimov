@@ -1334,12 +1334,31 @@
 		if (doc.metas.showtitle) {
 			let ui = '<header class="article-title">';
 			ui += '<p>' + doc.metas.title + '</p>';
-			if (doc.metas.showauthor && !!doc.metas.author) {
-				ui += '<p class="author">';
-				if (!!doc.metas.email) ui += '<a href="mailto:' + doc.metas.email + '">';
-				ui += doc.metas.author;
-				if (!!doc.metas.email) ui += '</a>';
-				ui += '</p>';
+			if (doc.metas.showauthor) {
+				if (!!doc.metas.author) {
+					ui += '<p class="author">';
+					if (!!doc.metas.email) ui += '<a href="mailto:' + doc.metas.email + '">';
+					ui += doc.metas.author;
+					if (!!doc.metas.email) ui += '</a>';
+					ui += '</p>';
+				}
+				if (!!doc.metas.date) {
+					ui += '<p class="author date">';
+					let date = doc.metas.date * 1;
+					if (isNaN(date)) date = doc.metas.date;
+					else {
+						date = new Date(date);
+						let y = date.getYear() + 1900;
+						let m = date.getMonth() + 1;
+						let d = date.getDate();
+						let h = date.getHours();
+						let n = date.getMinutes();
+						let s = date.getSeconds();
+						date = y + '/' + m + '/' + d + ' ' + h + ':' + n + ':' + s;
+					}
+					ui += date;
+					ui += '</p>';
+				}
 			}
 			ui += '</header>';
 			sections.unshift(ui);

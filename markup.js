@@ -1724,7 +1724,7 @@
 		if (!!config) Object.keys(config).forEach(key => {
 			key = key.toLowerCase();
 			let value = config[key];
-			if (value !== undefined && value !== null && (!!config.overwrite || !docTree.metas[key])) docTree.metas[key] = value;
+			if (value !== undefined && value !== null && (!!config.overwrite || docTree.metas[key] === undefined)) docTree.metas[key] = value;
 		});
 		docTree.parseLevel = 0;
 		docTree.mainParser = true;

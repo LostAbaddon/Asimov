@@ -1722,13 +1722,26 @@
 		text = prepare(text);
 		text = getMetas(docTree, text);
 		if (!!config) Object.keys(config).forEach(key => {
-			key = key.toLowerCase();
 			let value = config[key];
-			if (value !== undefined && value !== null && (!!config.overwrite || docTree.metas[key] === undefined)) docTree.metas[key] = value;
+			key = key.toLowerCase();
+			if (['title', 'author', 'email', 'date'].indexOf(key) >= 0) return;
+			if (value !== undefined && value !== null) docTree.metas[key] = value;
 		});
 		docTree.parseLevel = 0;
 		docTree.mainParser = true;
 		docTree.metas.title = docTree.metas.title || '无名文';
+		if (!!config.overwrite) {
+			docTree.metas.title = !!config.title ? config.title : docTree.metas.title;
+			docTree.metas.author = !!config.author ? config.author : docTree.metas.author;
+			docTree.metas.email = !!config.email ? config.email : docTree.metas.email;
+			docTree.metas.date = !!config.date ? config.date : docTree.metas.date;
+		}
+		else {
+			docTree.metas.title = !!docTree.metas.title ? docTree.metas.title : config.title;
+			docTree.metas.author = !!docTree.metas.author ? docTree.metas.author : config.author;
+			docTree.metas.email = !!docTree.metas.email ? docTree.metas.email : config.email;
+			docTree.metas.date = !!docTree.metas.date ? docTree.metas.date : config.date;
+		}
 
 		// 主体解析
 		text = parseSection(text, docTree);

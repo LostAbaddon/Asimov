@@ -1337,7 +1337,7 @@
 			if (doc.metas.showauthor && !!doc.metas.author) {
 				ui += '<p class="author">';
 				if (!!doc.metas.email) ui += '<a href="mailto:' + doc.metas.email + '">';
-				ui += doc.metas.author
+				ui += doc.metas.author;
 				if (!!doc.metas.email) ui += '</a>';
 				ui += '</p>';
 			}
@@ -1617,7 +1617,7 @@
 		if (!!metas.toc && ['on', 'yes', 'true'].includes(metas.toc.toLowerCase())) metas.toc = true;
 		else metas.toc = false;
 		doc.metas = metas;
-		doc.metas.keyword = getKeywords(doc.metas.keyword)
+		doc.metas.keyword = getKeywords(doc.metas.keyword);
 		if (!!doc.metas.date) {
 			try {
 				doc.metas.date = (new Date(doc.metas.date)).getTime();
@@ -1724,7 +1724,7 @@
 		if (!!config) Object.keys(config).forEach(key => {
 			key = key.toLowerCase();
 			let value = config[key];
-			if (value !== undefined && value !== null) docTree.metas[key] = value;
+			if (value !== undefined && value !== null && !!config.overwrite) docTree.metas[key] = value;
 		});
 		docTree.parseLevel = 0;
 		docTree.mainParser = true;

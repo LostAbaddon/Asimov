@@ -525,7 +525,7 @@ MarkUp.addExtension({
 
 // 图片等资源
 MarkUp.addExtension({
-	name: 'HyperLinks',
+	name: 'Images',
 	parse: (line, doc, caches) => {
 		var changed = false;
 

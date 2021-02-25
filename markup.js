@@ -838,9 +838,9 @@
 				// 将地址引用恢复（使用metas和refs）
 				line = line.replace(/(\])[ 　\t]*(\[([\w \-\.]+)\])/g, (match, prefix, all, name) => {
 					var ref = doc.refs[name], meta;
-					if (!ref || (ref.indexOf('://') < 0 && ref.indexOf('@') < 0) || ref.indexOf('\n') >= 0) {
+					if (!ref || (ref.indexOf('://') < 0 && ref.indexOf('@') < 0 && !ref.match(/^\.{0,2}[\\\/]/)) || ref.indexOf('\n') >= 0) {
 						meta = doc.metas[name.toLowerCase()];
-						if (!meta || (meta.indexOf('://') < 0 && meta.indexOf('@') < 0) || meta.indexOf('\n') >= 0) return match;
+						if (!meta || (meta.indexOf('://') < 0 && meta.indexOf('@') < 0 && !meta.match(/^\.{0,2}[\\\/]/)) || meta.indexOf('\n') >= 0) return match;
 						ref = meta;
 					}
 					return prefix + '(' + ref + ')';

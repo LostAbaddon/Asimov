@@ -77,7 +77,7 @@ MarkUp.addExtension({
 				else if (link.indexOf('@') > 1) {
 					ui = ui + 'mailto:' + link + '">';
 				}
-				else if (first === '.' || first === '\\' || first === '/') {
+				else if (first === '.' || first === '\\' || first === '/' || first === '#') {
 					ui = ui + link + '">';
 				}
 				else {

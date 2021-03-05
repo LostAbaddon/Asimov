@@ -1820,6 +1820,7 @@
 		result.meta.description = docTree.metas.description;
 		result.meta.update = docTree.metas.date;
 		result.meta.keywords = docTree.metas.keyword.map(kw => kw);
+		if (!!docTree.metas.others) result.meta.others = docTree.metas.others;
 
 		result.terminology = {};
 		docTree.termList.forEach(item => {

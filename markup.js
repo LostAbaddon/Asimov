@@ -428,11 +428,12 @@
 		}
 
 		// 缩进
-		var indent = line.match(/^(:+)/);
-		if (!!indent && !line.match(/^:([\w\-\.]+?):/)) {
+		var lineContent = line.replace(/^[ 　\t]*<\w+.*?>[ 　\t]*/, '');
+		var indent = lineContent.match(/^(:+)/);
+		if (!!indent && !lineContent.match(/^:([\w\-\.]+?):/)) {
 			indent = indent[0];
 			classes.push('indent', 'indent-' + indent.length);
-			line = line.replace(/^:+/, '');
+			line = line.replace(/^([ 　\t]*<\w+.*?>[ 　\t]*):+/, (match, head) => head);
 		}
 
 		// 合成样式

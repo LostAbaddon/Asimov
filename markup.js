@@ -302,8 +302,7 @@
 			blockMap[line[0]] = line;
 		});
 
-		var changed = true;
-		changed = false;
+		var changed = false;
 
 		if (blocks.length > 0) {
 			// LaTeX 数学公式
@@ -1180,21 +1179,7 @@
 			}
 
 			// 缩进项
-			head = ctx.match(/^[ 　\t]+/);
-			if (!!head) {
-				head = head[0];
-				let len = 0;
-				let h = head.match(/ /g);
-				if (!!h) len += h.length;
-				h = head.match(/　/g);
-				if (!!h) len += h.length * 2;
-				h = head.match(/\t/g);
-				if (!!h) len += h.length * 4;
-				h = (Math.floor(len / 4) - 1) * 4;
-				let spaces = '';
-				for (let i = 0; i < h - 4; i ++) spaces += ' ';
-				ctx = ctx.replace(head, spaces);
-			}
+			ctx = ctx.replace(/^(\t|　　|    | 　 |  　|　  )/, '');
 			list[lid].push(ctx);
 		});
 		list = list.map(item => {

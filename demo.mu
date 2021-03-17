@@ -261,6 +261,17 @@ $$
 
 也可以是行内公式，比如： $E = m c^2$。
 
+此外，代码块也和 MarkDown 语法一样，在行内用 \` 来做前后缀，或者段落级的用 \`\`\` 来做前后缀，比如下面这样：
+
+```
+const tester = function (num) {
+	var result = Math.sqrt(Math.abs(1 - num * num));
+	if (result > 1) return 1 - 1 / result;
+	else return result;
+};
+console.log(tester(123));
+```
+
 ## 表格
 
 表格的写法也和传统的 MarkDown 一样，不过现在我们支持无表头表格：

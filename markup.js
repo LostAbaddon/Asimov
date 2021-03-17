@@ -11,6 +11,12 @@
 	const MetaWords = ['GOD', 'THEONE', 'TITLE', 'AUTHOR', 'EMAIL', 'DESCRIPTION', 'STYLE', 'SCRIPT', 'DATE', 'KEYWORD', 'GLOSSARY', 'TOC', 'REF', 'LINK', 'IMAGES', 'VIDEOS', 'AUDIOS', 'ARCHOR', 'SHOWTITLE', 'SHOWAUTHOR', 'RESOURCES'];
 	const PreservedKeywords = ['toc', 'glossary', 'resources', 'images', 'videos', 'audios'];
 	const ParagraphTags = ['article', 'section', 'div', 'p', 'header', 'footer', 'aside', 'ul', 'ol', 'li', 'blockquote', 'pre', 'figure', 'figcaption'];
+	const CodeBlockKeyWords = {
+		system: /(.?)(if|else|for|while|do|continue|break|return|new|delete|try|catch|final|then|await|null|undefined|nil|import|export|module|default)(.?)/g,
+		function: /(.?)(const|var|let|async|function|require|Number|String|Boolean|Integer|Float|Promise|Proxy|Array|Object|Function|Uint8Array|Uint16Array|Uint32Array|Int8Array|Int16Array|Int32Array|Buffer)(.?)/g,
+		operator: /(.?)(=>|>=|<=|\+=|\-=|\*=|\/=|\/|\+{1,2}|\-{1,2}|={1,3}|>{1,2}|<{1,2}|\-|\+|\*{1,2})(.?)/g,
+		consts: /(.?)(\d+(\.\d*)?)(.?)/g,
+	};
 
 	const PreserveWords = {
 		'\\': 'slash',
@@ -619,9 +625,74 @@
 			part = prefix;
 			var ctx = [];
 			for (let i = block[0] + 1; i < block[1]; i ++) {
-				ctx.push(contents[i]);
+				let ct = contents[i];
+				let brakets = [], last = -1;
+				ct.replace(/(\\*)(")/g, (match, pre, quote, pos) => {
+					var len = pre.length;
+					if ((len >> 1 << 1) !== len) return;
+					pos += len;
+					if (last === -1) {
+						last = pos;
+					}
+					else {
+						brakets.push([last, pos]);
+						last = -1;
+					}
+				});
+				ct.replace(/(\\*)(')/g, (match, pre, quote, pos) => {
+					var len = pre.length;
+					if ((len >> 1 << 1) !== len) return;
+					pos += len;
+					if (last === -1) {
+						last = pos;
+					}
+					else {
+						brakets.push([last, pos]);
+						last = -1;
+					}
+				});
+				var offset = 0, length = ct.length;
+				brakets.sort((ba, bb) => ba[0] - bb[0]);
+				ct = ct.replace(CodeBlockKeyWords.operator, (match, pre, word, post, pos) => {
+					var inside = brakets.some(pair => pos >= pair[0] + offset && pos <= pair[1] + offset);
+					if (inside) return match;
+					var result = (pre || '') + '<span class="operatorword">' + word + '</span>' + (post || '');
+					return result;
+				});
+				offset += ct.length - length;
+				length = ct.length;
+				ct = ct.replace(CodeBlockKeyWords.system, (match, pre, word, post, pos) => {
+					var inside = brakets.some(pair => pos >= pair[0] + offset && pos <= pair[1] + offset);
+					if (inside) return match;
+					if (!!pre && pre.match(/[\w\d_\.]/)) return match;
+					if (!!post && post.match(/[\w\d_\.]/)) return match;
+					var result = (pre || '') + '<span class="coreword">' + word + '</span>' + (post || '');
+					return result;
+				});
+				offset += ct.length - length;
+				length = ct.length;
+				ct = ct.replace(CodeBlockKeyWords.function, (match, pre, word, post, pos) => {
+					var inside = brakets.some(pair => pos >= pair[0] + offset && pos <= pair[1] + offset);
+					if (inside) return match;
+					if (!!pre && pre.match(/[\w\d_\.]/)) return match;
+					if (!!post && post.match(/[\w\d_]/)) return match;
+					var result = (pre || '') + '<span class="keyword">' + word + '</span>' + (post || '');
+					return result;
+				});
+				offset += ct.length - length;
+				length = ct.length;
+				ct = ct.replace(CodeBlockKeyWords.consts, (match, pre, word, useless, post, pos) => {
+					var inside = brakets.some(pair => pos >= pair[0] + offset && pos <= pair[1] + offset);
+					if (inside) return match;
+					if (!!pre && pre.match(/[\w\d_\.]/)) return match;
+					if (!!post && post.match(/[\w\d_\.]/)) return match;
+					var result = (pre || '') + '<span class="constsword">' + word + '</span>' + (post || '');
+					return result;
+				});
+				offset += ct.length - length;
+				ctx.push('<p>' + ct + '</p>');
 			}
-			ctx = ctx.join('\n');
+			ctx = ctx.join('');
 			ctx = prefix + ctx + postfix;
 
 			var key = 'codeblock-' + generateRandomKey();

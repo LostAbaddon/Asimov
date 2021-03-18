@@ -628,11 +628,7 @@
 			lang = lang.replace(/^[ 　\t]+|[ 　\t]+$/g, '');
 			lang = lang.toLowerCase();
 			if (!lang || lang === '' || lang === 'text') lang = 'plaintext';
-			var prefix = '<pre', postfix = '</code></pre>';
-			if (lang.length === 0) {
-				prefix = prefix + ' lang="' + lang + '"><code>';
-			}
-			else prefix = prefix + '><code>';
+			var prefix = '<pre lang="' + lang + '"><code>', postfix = '</code></pre>';
 			var largeQuote = false;
 			var ctx = [], caches = [];
 			// 针对不同语言做处理

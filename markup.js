@@ -125,7 +125,7 @@
 			if (len < 4) return '\n';
 			else return match;
 		});
-		text = text.replace(/(\n[ 　\t>\-\+\*~(\d+\.)]+)(`{3}|~{3}|\${2})/g, (match, pre, post) => {
+		text = text.replace(/(\n[ 　\t>\-\+\*(\d+\.)]+)(`{3}|~{3}|\${2})/g, (match, pre, post) => {
 			return pre + '\n' + post;
 		});
 		MetaWords.forEach(key => {

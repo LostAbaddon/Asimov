@@ -2,8 +2,8 @@
  *	Title: MarkUp Parser
  *	Author: LostAbaddon
  *	Email: LostAbaddon@gmail.com
- *	Version: 1.0.0
- *	Date: 2020.03.18
+ *	Version: 1.0.2
+ *	Date: 2021.03.18
  */
 
 (() => {
@@ -12,10 +12,11 @@
 	const PreservedKeywords = ['toc', 'glossary', 'resources', 'images', 'videos', 'audios'];
 	const ParagraphTags = ['article', 'section', 'div', 'p', 'header', 'footer', 'aside', 'ul', 'ol', 'li', 'blockquote', 'pre', 'figure', 'figcaption'];
 	const CodeBlockKeyWords = {
-		system: /(.?)(if|else|for|while|do|continue|break|return|new|delete|try|catch|final|then|await|null|undefined|nil|import|export|module|default)(.?)/g,
-		function: /(.?)(const|var|let|async|function|require|Number|String|Boolean|Integer|Float|Promise|Proxy|Array|Object|Function|Uint8Array|Uint16Array|Uint32Array|Int8Array|Int16Array|Int32Array|Buffer)(.?)/g,
+		system: /(.?)(if|else|for|while|do|continue|break|return|new|delete|try|catch|final|then|async|await|yield|null|undefined|nil|import|export|module|require|default)(.?)/g,
+		function: /(.?)(const|var|let|function|class|Class|Number|String|Boolean|Integer|Float|Promise|Proxy|Array|ArrayBuffer|AysncFunction|Object|Function|Uint8Array|Uint16Array|Uint64Array|Int8Array|Int16Array|Int64Array|Buffer|BigInt)(.?)/g,
 		operator: /(.?)(=>|>=|<=|\+=|\-=|\*=|\/=|\/|\+{1,2}|\-{1,2}|={1,3}|>{1,2}|<{1,2}|\-|\+|\*{1,2})(.?)/g,
 		consts: /(.?)(\d+(\.\d*)?)(.?)/g,
+		object: /(.?)(Math|console|window|process|document|Document|location|localStorage|sessionStorage|navigator|Navigator|Blob|BroadcastChannel|Cache|CacheStorage|CachedDB|History)(.?)/g,
 	};
 
 	const PreserveWords = {
@@ -124,7 +125,7 @@
 			if (len < 4) return '\n';
 			else return match;
 		});
-		text = text.replace(/(\n[ 　\t>\-\+\*~(\d+\.)]+)(`{3,}|~{3,}|\${2})/g, (match, pre, post) => {
+		text = text.replace(/(\n[ 　\t>\-\+\*~(\d+\.)]+)(`{3}|~{3}|\${2})/g, (match, pre, post) => {
 			return pre + '\n' + post;
 		});
 		MetaWords.forEach(key => {
@@ -197,7 +198,7 @@
 		}
 
 		// 先预判断每一段可能是什么
-		var blocks = []; // 行号，是否空行，疑似分割线，疑似引用，疑似列表，是否代码块首尾，疑似表格，是否公式首尾
+		var blocks = []; // 行号，是否空行，疑似分割线，疑似引用，疑似列表，是否代码块首尾，疑似表格，是否公式首尾，其它信息
 		sections = content.split('\n');
 		sections.forEach((line, index) => {
 			// 空行
@@ -207,17 +208,17 @@
 				return;
 			}
 			// 分割线
-			if (line.match(/^[=\-\+\*~\._#]{3,}$/)) {
+			if (line.match(/^([=\-\+\*\._#]{3,}|~{4,})$/)) {
 				if (!!line.match(/^\-+$|^=+$/)) blocks.push([index, 0, 2, 0, 0, 0, 0, 0]);
 				else if (!!line.match(/^~+$/)) blocks.push([index, 0, 2, 0, 0, 1, 0, 0]);
 				else blocks.push([index, 0, 1, 0, 0, 0, 0, 0]);
 				return;
 			}
 			// 代码块
-			head = line.match(/^(`{3,}|~{3,})[ 　\t]*([\w\-\.\+=\?\~\\\/]*)$/);
+			head = line.match(/^(`{3}|~{3})[ 　\t]*([\w\-\.\+=\?\~\\\/]*)$/);
 			if (!!head) {
-				if (!!head[2]) blocks.push([index, 0, 0, 0, 0, 2, 0, 0]);
-				else blocks.push([index, 0, 0, 0, 0, 1, 0, 0]);
+				if (!!head[2]) blocks.push([index, 0, 0, 0, 0, 2, 0, 0, head[1]]);
+				else blocks.push([index, 0, 0, 0, 0, 1, 0, 0, head[1]]);
 				return;
 			}
 			// 公式块
@@ -551,7 +552,7 @@
 		return equaSection.length > 0;
 	};
 	const parseCodeBlock = (blocks, blockMap, contents, doc, caches) => {
-		// 筛选出疑似独立代码块
+		// 筛选出疑似独立代码块，第五位：1: 未知开始结束; 2: 开始; 3: 结束; 0: 不是有效代码开始结束符
 		var codeBlocks = [];
 		blocks.forEach(line => {
 			if (!line[5]) return;
@@ -564,22 +565,30 @@
 			return false;
 		}
 
-		// 先分离明确知道开头的
-		var total = codeBlocks.length, prev = codeBlocks[0];
+		// 剔除内嵌
+		var total = codeBlocks.length, prev = codeBlocks[0], shouldRemove = [], char;
 		prev[5] = 2;
+		char = prev[8];
+		// 先分离明确知道开头的，并剔除内嵌
 		for (let i = 1; i < total; i ++) {
 			let curr = codeBlocks[i];
+			if (!!char && curr[8] !== char) {
+				curr[5] = 0;
+				continue;
+			}
 			if (curr[5] === 2) {
 				if (i === total - 1) curr[5] = 0;
 				if (prev[5] !== 3) {
 					prev[5] = 0;
 					continue;
 				}
+				char = curr[8];
 			}
 			if (prev[5] === 2) {
 				curr[3] = prev[3];
 				curr[4] = prev[4];
 				curr[5] = 3;
+				char = null;
 			}
 			else if (prev[5] === 3) curr[5] = 2;
 			prev = curr;
@@ -613,84 +622,156 @@
 		}
 		codeSection.forEach(block => {
 			var lineS = contents[block[0]];
-			var part = lineS.match(/(`{3,}|~{3,})[ 　\t]*/)[0];
-			var index = lineS.indexOf(part);
-			part = lineS.substr(index + part.length, lineS.length);
-			part = part.replace(/^[ 　\t]+|[ 　\t]+$/g, '');
+			var lang = lineS.match(/(`{3,}|~{3,})[ 　\t]*/)[0];
+			var index = lineS.indexOf(lang);
+			lang = lineS.substr(index + lang.length, lineS.length);
+			lang = lang.replace(/^[ 　\t]+|[ 　\t]+$/g, '');
+			lang = lang.toLowerCase();
+			if (!lang || lang === '' || lang === 'text') lang = 'plaintext';
 			var prefix = '<pre', postfix = '</code></pre>';
-			if (part.length === 0) {
-				prefix = prefix + ' lang="' + part + '"><code>';
+			if (lang.length === 0) {
+				prefix = prefix + ' lang="' + lang + '"><code>';
 			}
 			else prefix = prefix + '><code>';
-			part = prefix;
-			var ctx = [];
-			for (let i = block[0] + 1; i < block[1]; i ++) {
-				let ct = contents[i];
-				let brakets = [], last = -1;
-				ct.replace(/(\\*)(")/g, (match, pre, quote, pos) => {
-					var len = pre.length;
-					if ((len >> 1 << 1) !== len) return;
-					pos += len;
-					if (last === -1) {
-						last = pos;
+			var largeQuote = false;
+			var ctx = [], caches = [];
+			// 针对不同语言做处理
+			// 如果是纯文本
+			if (lang === 'plaintext') {
+				for (let i = block[0] + 1; i < block[1]; i ++) {
+					let ct = contents[i];
+					ctx.push('<p>' + ct + '</p>');
+				}
+			}
+			else {
+				for (let i = block[0] + 1; i < block[1]; i ++) {
+					let ct = contents[i];
+					let brakets = [], last = -1, char = null, innerCache = [], bigQuote = false;
+					// 找出所有标记字符串的引号的位置
+					// 如果已经在大文字块状态
+					if (largeQuote) {
+						let qt = ct.match(/(\\*)`/);
+						// 如果没有大文字块结束符
+						if (!qt) {
+							brakets.push([0, ct.length - 1]);
+						}
+						else {
+							let len = qt[1].length;
+							// 如果是假性结束符
+							if ((len >> 1 << 1) !== len) {
+								brakets.push([0, ct.length - 1]);
+							}
+							// 如果真的结束了
+							else {
+								largeQuote = false;
+								bigQuote = true;
+								last = 0;
+								char = "`";
+								ct.replace(/(\\*)(['"`])/g, (match, pre, quote, pos) => {
+									var len = pre.length;
+									if (!!char && quote !== char) return;
+									if ((len >> 1 << 1) !== len) return;
+									pos += len;
+									if (last === -1) {
+										last = pos;
+										char = quote;
+										if (quote === '`') bigQuote = true;
+									}
+									else {
+										brakets.push([last, pos]);
+										last = -1;
+										char = null;
+										if (quote === '`') bigQuote = false;
+									}
+								});
+								if (bigQuote) {
+									brakets.push([last, ct.length - 1]);
+									largeQuote = true;
+								}
+							}
+						}
 					}
+					// 如果不在大文字块内
 					else {
-						brakets.push([last, pos]);
-						last = -1;
+						ct.replace(/(\\*)(['"`])/g, (match, pre, quote, pos) => {
+							var len = pre.length;
+							if (!!char && quote !== char) return;
+							if ((len >> 1 << 1) !== len) return;
+							pos += len;
+							if (last === -1) {
+								last = pos;
+								char = quote;
+								if (quote === '`') bigQuote = true;
+							}
+							else {
+								brakets.push([last, pos]);
+								last = -1;
+								char = null;
+								if (quote === '`') bigQuote = false;
+							}
+						});
+						if (bigQuote) {
+							brakets.push([last, ct.length - 1]);
+							largeQuote = true;
+						}
 					}
-				});
-				ct.replace(/(\\*)(')/g, (match, pre, quote, pos) => {
-					var len = pre.length;
-					if ((len >> 1 << 1) !== len) return;
-					pos += len;
-					if (last === -1) {
-						last = pos;
+
+					for (let i = brakets.length - 1; i >= 0; i --) {
+						let bkt = brakets[i];
+						let pre = ct.substring(0, bkt[0]);
+						let blk = ct.substring(bkt[0], bkt[1] + 1);
+						let pst = ct.substring(bkt[1] + 1, ct.length);
+						let mrk = '[%:' + innerCache.length + ':%]';
+						innerCache.push(blk);
+						ct = pre + mrk + pst;
 					}
-					else {
-						brakets.push([last, pos]);
-						last = -1;
-					}
-				});
-				var offset = 0, length = ct.length;
-				brakets.sort((ba, bb) => ba[0] - bb[0]);
-				ct = ct.replace(CodeBlockKeyWords.operator, (match, pre, word, post, pos) => {
-					var inside = brakets.some(pair => pos >= pair[0] + offset && pos <= pair[1] + offset);
-					if (inside) return match;
-					var result = (pre || '') + '<span class="operatorword">' + word + '</span>' + (post || '');
-					return result;
-				});
-				offset += ct.length - length;
-				length = ct.length;
-				ct = ct.replace(CodeBlockKeyWords.system, (match, pre, word, post, pos) => {
-					var inside = brakets.some(pair => pos >= pair[0] + offset && pos <= pair[1] + offset);
-					if (inside) return match;
-					if (!!pre && pre.match(/[\w\d_\.]/)) return match;
-					if (!!post && post.match(/[\w\d_\.]/)) return match;
-					var result = (pre || '') + '<span class="coreword">' + word + '</span>' + (post || '');
-					return result;
-				});
-				offset += ct.length - length;
-				length = ct.length;
-				ct = ct.replace(CodeBlockKeyWords.function, (match, pre, word, post, pos) => {
-					var inside = brakets.some(pair => pos >= pair[0] + offset && pos <= pair[1] + offset);
-					if (inside) return match;
-					if (!!pre && pre.match(/[\w\d_\.]/)) return match;
-					if (!!post && post.match(/[\w\d_]/)) return match;
-					var result = (pre || '') + '<span class="keyword">' + word + '</span>' + (post || '');
-					return result;
-				});
-				offset += ct.length - length;
-				length = ct.length;
-				ct = ct.replace(CodeBlockKeyWords.consts, (match, pre, word, useless, post, pos) => {
-					var inside = brakets.some(pair => pos >= pair[0] + offset && pos <= pair[1] + offset);
-					if (inside) return match;
-					if (!!pre && pre.match(/[\w\d_\.]/)) return match;
-					if (!!post && post.match(/[\w\d_\.]/)) return match;
-					var result = (pre || '') + '<span class="constsword">' + word + '</span>' + (post || '');
-					return result;
-				});
-				offset += ct.length - length;
-				ctx.push('<p>' + ct + '</p>');
+
+					ct = ct.replace(CodeBlockKeyWords.operator, (match, pre, word, post, pos) => {
+						var inside = brakets.some(pair => pos >= pair[0] && pos <= pair[1]);
+						if (inside) return match;
+						var result = (pre || '') + '<span CLASS="operatorword">' + word + '</span>' + (post || '');
+						return result;
+					});
+					ct = ct.replace(CodeBlockKeyWords.system, (match, pre, word, post, pos) => {
+						var inside = brakets.some(pair => pos >= pair[0] && pos <= pair[1]);
+						if (inside) return match;
+						if (!!pre && pre.match(/[\w\d_\.]/)) return match;
+						if (!!post && post.match(/[\w\d_\.]/)) return match;
+						var result = (pre || '') + '<span CLASS="flowword">' + word + '</span>' + (post || '');
+						return result;
+					});
+					ct = ct.replace(CodeBlockKeyWords.function, (match, pre, word, post, pos) => {
+						var inside = brakets.some(pair => pos >= pair[0] && pos <= pair[1]);
+						if (inside) return match;
+						if (!!pre && pre.match(/[\w\d_\.]/)) return match;
+						if (!!post && post.match(/[\w\d_]/)) return match;
+						var result = (pre || '') + '<span CLASS="keyword">' + word + '</span>' + (post || '');
+						return result;
+					});
+					ct = ct.replace(CodeBlockKeyWords.consts, (match, pre, word, useless, post, pos) => {
+						var inside = brakets.some(pair => pos >= pair[0] && pos <= pair[1]);
+						if (inside) return match;
+						if (!!pre && pre.match(/[\w\d_\.]/)) return match;
+						if (!!post && post.match(/[\w\d_\.]/)) return match;
+						var result = (pre || '') + '<span CLASS="constsword">' + word + '</span>' + (post || '');
+						return result;
+					});
+					ct = ct.replace(CodeBlockKeyWords.object, (match, pre, word, post, pos) => {
+						var inside = brakets.some(pair => pos >= pair[0] && pos <= pair[1]);
+						if (inside) return match;
+						if (!!pre && pre.match(/[\w\d_\.]/)) return match;
+						if (!!post && post.match(/[\w\d_]/)) return match;
+						var result = (pre || '') + '<span CLASS="objectword">' + word + '</span>' + (post || '');
+						return result;
+					});
+					innerCache.forEach((inner, index) => {
+						var mrk = '\\[%:(<span CLASS="constsword">)?' + index + '(</span>)?:%\\]';
+						mrk = new RegExp(mrk);
+						ct = ct.replace(mrk, '<span CLASS="constsword">' + inner + '</span>');
+					});
+					ct = ct.replace(/<span CLASS="/g, '<span class="');
+					ctx.push('<p>' + ct + '</p>');
+				}
 			}
 			ctx = ctx.join('');
 			ctx = prefix + ctx + postfix;

@@ -64,6 +64,7 @@
 	};
 
 	MarkUp.addExtension = (ext, isInline=0, level=5) => {
+		// 如果是块内解析插件
 		if (isInline === 0) {
 			let indexes = LineRender['_indexes_'];
 			if (!indexes) {
@@ -81,6 +82,7 @@
 			}
 			indexes.push(ext);
 		}
+		// 如果是块级解析插件
 		else if (isInline === 1) {
 			let indexes = BlockRender['_indexes_'];
 			if (!indexes) {
@@ -98,6 +100,7 @@
 			}
 			indexes.push(ext);
 		}
+		// 如果是最终解析插件
 		else if (isInline === 2) {
 			let indexes = FinalRender['_indexes_'];
 			if (!indexes) {
@@ -1949,7 +1952,7 @@
 			var renderList = FinalRender[index];
 			if (!renderList) return;
 			renderList.forEach(render => {
-				text = render.parse(text);
+				text = render.parse(text, docTree);
 			});
 		});
 

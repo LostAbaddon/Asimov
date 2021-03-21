@@ -1664,6 +1664,11 @@
 		var ui = '<ul>';
 		resources.forEach(item => {
 			var res = item[1];
+			res = res.replace(/\%([\w \-]+?)\%/g, (match, mark) => {
+				var word = ReversePreserveWords[mark.toLowerCase()];
+				if (!!word) return word;
+				return match;
+			});
 			if (list.includes(res)) return;
 			list.push(res);
 			ui += '<li><a href="' + res + '" target="_blank">' + res + '</a></li>';
@@ -1766,19 +1771,19 @@
 			});
 		}
 		if (!!metas.showtitle && ['on', 'yes', 'true'].includes(metas.showtitle.toLowerCase())) metas.showtitle = true;
-		else metas.showtitle = false;
+		else metas.showtitle = undefined;
 		if (!!metas.glossary && ['on', 'yes', 'true'].includes(metas.glossary.toLowerCase())) metas.glossary = true;
-		else metas.glossary = false;
+		else metas.glossary = undefined;
 		if (!!metas.links && ['on', 'yes', 'true'].includes(metas.links.toLowerCase())) metas.links = true;
-		else metas.links = false;
+		else metas.links = undefined;
 		if (!!metas.refs && ['on', 'yes', 'true'].includes(metas.refs.toLowerCase())) metas.refs = true;
-		else metas.refs = false;
+		else metas.refs = undefined;
 		if (!!metas.terms && ['on', 'yes', 'true'].includes(metas.terms.toLowerCase())) metas.terms = true;
-		else metas.terms = false;
+		else metas.terms = undefined;
 		if (!!metas.resources && ['on', 'yes', 'true'].includes(metas.resources.toLowerCase())) metas.resources = true;
-		else metas.resources = false;
+		else metas.resources = undefined;
 		if (!!metas.toc && ['on', 'yes', 'true'].includes(metas.toc.toLowerCase())) metas.toc = true;
-		else metas.toc = false;
+		else metas.toc = undefined;
 		doc.metas = metas;
 		doc.metas.keyword = getKeywords(doc.metas.keyword);
 		if (!!doc.metas.date) {
@@ -1883,27 +1888,28 @@
 
 		text = prepare(text);
 		text = getMetas(docTree, text);
-		if (!!config) Object.keys(config).forEach(key => {
-			let value = config[key];
-			key = key.toLowerCase();
-			if (['title', 'author', 'email', 'date'].indexOf(key) >= 0) return;
-			if (value !== undefined && value !== null) docTree.metas[key] = value;
-		});
 		docTree.parseLevel = 0;
 		docTree.mainParser = true;
 		docTree.metas.title = docTree.metas.title || '无名文';
+		var keyList = Object.keys(docTree.metas);
+		Object.keys(config).forEach(key => {
+			if (keyList.includes(key)) return;
+			keyList.push(key);
+		});
 		if (!!config.overwrite) {
-			docTree.metas.title = !!config.title ? config.title : docTree.metas.title;
-			docTree.metas.author = !!config.author ? config.author : docTree.metas.author;
-			docTree.metas.email = !!config.email ? config.email : docTree.metas.email;
-			docTree.metas.date = !!config.date ? config.date : docTree.metas.date;
+			keyList.forEach(key => {
+				docTree.metas[key] = (config[key] === null || config[key] === undefined) ? docTree.metas[key] : config[key];
+			});
 		}
 		else {
-			docTree.metas.title = !!docTree.metas.title ? docTree.metas.title : config.title;
-			docTree.metas.author = !!docTree.metas.author ? docTree.metas.author : config.author;
-			docTree.metas.email = !!docTree.metas.email ? docTree.metas.email : config.email;
-			docTree.metas.date = !!docTree.metas.date ? docTree.metas.date : config.date;
+			keyList.forEach(key => {
+				docTree.metas[key] = (docTree.metas[key] === null || docTree.metas[key] === undefined) ? config[key] : docTree.metas[key];
+			});
 		}
+		// 对未定义的属性做默认化
+			keyList.forEach(key => {
+				if (docTree.metas[key] === null || docTree.metas[key] === undefined) docTree.metas[key] = false;
+			});
 
 		// 主体解析
 		text = parseSection(text, docTree);

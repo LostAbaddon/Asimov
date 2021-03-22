@@ -1910,9 +1910,9 @@
 			});
 		}
 		// 对未定义的属性做默认化
-			keyList.forEach(key => {
-				if (docTree.metas[key] === null || docTree.metas[key] === undefined) docTree.metas[key] = false;
-			});
+		keyList.forEach(key => {
+			if (docTree.metas[key] === null || docTree.metas[key] === undefined) docTree.metas[key] = false;
+		});
 
 		// 主体解析
 		text = parseSection(text, docTree);
@@ -1955,6 +1955,9 @@
 				text = render.parse(text, docTree);
 			});
 		});
+
+		// 去除空行
+		text = text.replace(/<p>(<br\/?>)+<\/p>/gi, '');
 
 		var result = {};
 		result.content = text;

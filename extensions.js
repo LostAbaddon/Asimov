@@ -106,7 +106,8 @@ MarkUp.addExtension({
 			if (title.length === 0) return match;
 			if (!!caches[title]) return match;
 
-			var content = MarkUp.parseLine(title, doc, 3, caches), key;
+			var key;
+			title = MarkUp.parseLine(title, doc, 3, caches);
 
 			if (!!doc.refs[name]) {
 				// 有定义，所以是术语

@@ -1401,43 +1401,11 @@
 		doc.chapList = chapList;
 
 		// 处理脚注
-		sections = sections.map(para => {
-			var footnotes = [];
-			var prefix = '<section>', postfix = '</section>';
-			para.forEach((line, lid) => {
-				var changed = false;
-				line = line.replace(/<a class="notemark" type="footnote" name="([\w \-\.]+?)">/g, (match, fn) => {
-					changed = true;
-					footnotes.push(fn);
-					var content = match.substr(0, match.length - 1) + ' href="#footnote-' + fn + '">';
-					return content;
-				});
-				if (changed) para[lid] = line;
-			});
-			para = para.join('');
-			if (footnotes.length === 0) return prefix + para + postfix;
-			footnotes = footnotes.map((name, i) => {
-				var content = doc.refs[name];
-				var id = doc.footnotes.indexOf(name);
-				i ++;
-				para = para.replace(new RegExp('%%FN-' + id + '%%', 'g'), i);
-				return '<p class="footnote-content"><a class="index" name="footnote-' + name + '">' + i + '：</a>' + content + '</p>';
-			});
-			para += '<hr class="footnote-line"><footer><p class="footnote-title">脚注：</p>';
-			para += footnotes.join('');
-			para += '</footer><hr class="footnote-line end">';
-			return prefix + para + postfix;
-		});
+		sections = applyFootNotes(sections, doc);
 
 		// 处理尾注
 		if (!!doc.endnotes && doc.endnotes.length > 0) {
-			let html = '<hr class="endnote-line">';
-			html += '<section class="endnote-chapter"><h1 class="endnote-title"><a name="EndNote">尾注</a></h1>';
-			doc.endnotes.forEach((en, i) => {
-				html += '<p class="endnote-content"><a class="index" name="endnote-' + en + '">' + (i + 1) + '：</a>' + doc.refs[en] + '</p>';
-			});
-			html += '</section>';
-			sections.push(html);
+			sections.push(applyEndNotes(doc));
 		}
 
 		// 处理术语表
@@ -1612,6 +1580,45 @@
 			}
 		}
 		return sections;
+	};
+	const applyFootNotes = (sections, doc) => {
+		sections = sections.map(para => {
+			var footnotes = [];
+			var prefix = '<section>', postfix = '</section>';
+			para.forEach((line, lid) => {
+				var changed = false;
+				line = line.replace(/<a class="notemark" type="footnote" name="([\w \-\.]+?)">/g, (match, fn) => {
+					changed = true;
+					footnotes.push(fn);
+					var content = match.substr(0, match.length - 1) + ' href="#footnote-' + fn + '">';
+					return content;
+				});
+				if (changed) para[lid] = line;
+			});
+			para = para.join('');
+			if (footnotes.length === 0) return prefix + para + postfix;
+			footnotes = footnotes.map((name, i) => {
+				var content = doc.refs[name];
+				var id = doc.footnotes.indexOf(name);
+				i ++;
+				para = para.replace(new RegExp('%%FN-' + id + '%%', 'g'), i);
+				return '<p class="footnote-content"><a class="index" name="footnote-' + name + '">' + i + '：</a>' + content + '</p>';
+			});
+			para += '<hr class="footnote-line"><footer><p class="footnote-title">脚注：</p>';
+			para += footnotes.join('');
+			para += '</footer><hr class="footnote-line end">';
+			return prefix + para + postfix;
+		});
+		return sections;
+	};
+	const applyEndNotes = (doc) => {
+		let html = '<hr class="endnote-line">';
+		html += '<section class="endnote-chapter"><h1 class="endnote-title"><a name="EndNote">尾注</a></h1>';
+		doc.endnotes.forEach((en, i) => {
+			html += '<p class="endnote-content"><a class="index" name="endnote-' + en + '">' + (i + 1) + '：</a>' + doc.refs[en] + '</p>';
+		});
+		html += '</section>';
+		return html;
 	};
 	const generateTableOfContent = (doc, title, level) => {
 		var html = '<h1 name="ContentTable">' + title + '</h1><aside class="content-table">';
@@ -1839,28 +1846,6 @@
 			});
 		}
 
-		Object.keys(doc.refs).forEach(key => {
-			var line = doc.refs[key];
-			line = parseLine(line, doc);
-			// 恢复保留字
-			line = line.replace(/\%([\w \-]+?)\%/g, (match, mark) => {
-				var word = ReversePreserveWords[mark.toLowerCase()];
-				if (!!word) return word;
-				return match;
-			});
-			doc.refs[key] = line;
-		});
-		Object.keys(doc.blocks).forEach(key => {
-			var line = doc.blocks[key];
-			var header = line.match(/^\n+/);
-			line = line.trim();
-			var content;
-			doc.parseLevel = 0;
-			if (!header) content = [parseLine(line, doc)];
-			else content = parseSection(line, doc, 1);
-			doc.blocks[key] = content.join('');
-		});
-
 		doc.anchors = [];
 		doc.terms = {};
 		doc.notes = {};
@@ -1870,12 +1855,13 @@
 				if (usage.substr(0, 1) === '{' && !doc.anchors.includes(key)) doc.anchors.push(key);
 			}
 			else if (usage.substr(0, 1) === '{') {
-				doc.terms[key] = doc.refs[key];
+				doc.terms[key] = key;
 			}
 			else {
-				doc.notes[key] = doc.refs[key];
+				doc.notes[key] = key;
 			}
 		});
+
 
 		// 合并回文档
 		text = regularize(text);
@@ -1916,6 +1902,35 @@
 
 		// 主体解析
 		text = parseSection(text, docTree);
+
+		// 处理术语等模块
+		Object.keys(docTree.refs).forEach(key => {
+			var line = docTree.refs[key];
+			line = parseLine(line, docTree);
+			// 恢复保留字
+			line = line.replace(/\%([\w \-]+?)\%/g, (match, mark) => {
+				var word = ReversePreserveWords[mark.toLowerCase()];
+				if (!!word) return word;
+				return match;
+			});
+			docTree.refs[key] = line;
+		});
+		Object.keys(docTree.blocks).forEach(key => {
+			var line = docTree.blocks[key];
+			var header = line.match(/^\n+/);
+			line = line.trim();
+			var content;
+			docTree.parseLevel = 0;
+			if (!header) content = [parseLine(line, docTree)];
+			else content = parseSection(line, docTree, 1);
+			docTree.blocks[key] = content.join('');
+		});
+		for (let key in docTree.terms) {
+			docTree.terms[key] = docTree.refs[key];
+		}
+		for (let key in docTree.notes) {
+			docTree.notes[key] = docTree.refs[key];
+		}
 
 		// 恢复保留字
 		text = text.map(content => {

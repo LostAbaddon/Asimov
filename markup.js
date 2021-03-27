@@ -2,8 +2,8 @@
  *	Title: MarkUp Parser
  *	Author: LostAbaddon
  *	Email: LostAbaddon@gmail.com
- *	Version: 1.0.2
- *	Date: 2021.03.18
+ *	Version: 1.1.0
+ *	Date: 2021.03.27
  */
 
 (() => {
@@ -17,6 +17,54 @@
 		operator: /(.?)(=>|>=|<=|\+=|\-=|\*=|\/=|\/|\+{1,2}|\-{1,2}|={1,3}|>{1,2}|<{1,2}|\-|\+|\*{1,2})(.?)/g,
 		consts: /(.?)(\d+(\.\d*)?)(.?)/g,
 		object: /(.?)(Math|console|window|process|document|Document|location|localStorage|sessionStorage|navigator|Navigator|Blob|BroadcastChannel|Cache|CacheStorage|CachedDB|History)(.?)/g,
+	};
+	const Char2Dig = {
+		a: '0',
+		b: '1',
+		c: '2',
+		d: '3',
+		e: '4',
+		f: '5',
+		g: '6',
+		h: '7',
+		i: '8',
+		j: '9',
+		k: 'a',
+		l: 'b',
+		m: 'c',
+		n: 'd',
+		o: 'e',
+		p: 'f',
+		q: 'g',
+		r: 'h',
+		s: 'i',
+		t: 'j',
+		u: 'k',
+		v: 'l',
+		w: 'm',
+		x: 'n',
+		y: 'o',
+		z: 'p',
+	};
+
+	const MathTools = {
+		factorial (num, lev=1) {
+			if (lev < 1) return 1;
+			if (num <= lev) return 1;
+			return num * MathTools.factorial(num - lev, lev);
+		},
+		permutate (total, num) {
+			if (total <= 1) return 1;
+			if (num <= 1) return total;
+			if (num > total) return 1;
+			return (total - num + 1) * MathTools.permutate(total, num - 1);
+		},
+		combinate (total, num) {
+			if (total <= 1) return 1;
+			if (num <= 0) return 1;
+			if (num >= total) return 1;
+			return (total - num + 1) / num * MathTools.combinate(total, num - 1);
+		},
 	};
 
 	const PreserveWords = {
@@ -1130,8 +1178,19 @@
 	};
 
 	const generateTable = (table, blocks, blockMap, contents, doc, caches) => {
-		var hasHead = true;
+		var hasHead = true, name = null;
 		var cfgLine = null, cfgID = -1;
+
+		// 提取表格名，必须唯一第一行
+		name = contents[table[0][0]].match(/\|>[ 　\t]*(.*)[ 　\t]*<\|/);
+		if (!!name) {
+			name = name[1].trim();
+			contents[table[0][0]] = '';
+			table.shift();
+		}
+		else {
+			name = generateRandomKey(16);
+		}
 
 		// 分析表格的对齐信息
 		table.some((info, index) => {
@@ -1164,7 +1223,7 @@
 
 		// 提取表格内容
 		var rows = [], cols = 0;
-		table.forEach(line => {
+		table.forEach((line, i) => {
 			var num = line[0];
 			if (num === cfgID) return;
 			var row = parseTableRow(contents[num]);
@@ -1200,26 +1259,55 @@
 		}
 
 		// 生成表格正文
-		var html = '<table>';
+		var html = '<table name="' + name + '">';
 		if (hasHead) {
 			html += '<thead><tr>';
 			header.forEach((col, i) => {
+				var sortable = false;
+				if (!!col.match(/\{s\}$/i)) {
+					sortable = true;
+					col = col.replace(/[ 　\t]*\{s\}$/i, '');
+				}
 				col = parseLine(col, doc);
 				var ui = '<th align="';
 				var c = cfgLine[i];
 				if (c === 1) ui += 'center';
 				else if (c === 2) ui += 'right';
 				else ui += 'left';
+				if (sortable) {
+					ui += '" sortable="true';
+				}
 				ui += '">' + col + '</td>';
 				html += ui;
 			});
 			html += '</tr></thead>';
 		}
 		html += '<tbody>';
-		rows.forEach(row => {
+
+		// 判断是否需要计算
+		var calculations = [];
+		rows.forEach((row, j) => {
+			row.forEach((col, i) => {
+				var match = col.match(/^CAL(\d*)=[ 　\t]*(.*)[ 　\t]*$/);
+				if (!match) return;
+				var level = match[1] * 1;
+				if (isNaN(level) || level < 1) level = 1;
+				var equation = match[2];
+				calculations[i] = [level, equation, j + 1];
+			});
+		});
+		if (calculations.length > 0) {
+			calculateTable(rows, calculations);
+		}
+
+		var datum = []; // 将值传递给外部
+		rows.forEach((row, j) => {
 			html += '<tr>';
+			var dataRow = [];
 			row.forEach((col, i) => {
 				col = parseLine(col, doc);
+				var value = col.replace(/<.*?>/gi, '');
+				dataRow[i] = value;
 				var ui = '<td align="';
 				var c = cfgLine[i];
 				if (c === 1) ui += 'center';
@@ -1229,8 +1317,12 @@
 				html += ui;
 			});
 			html += '</tr>';
+			datum[j] = dataRow;
 		});
+
 		html += '</tbody></table>';
+		doc.tables = doc.tables || {};
+		doc.tables[name] = datum;
 
 		var key = 'table-' + generateRandomKey();
 		caches[key] = html;
@@ -1247,6 +1339,67 @@
 			line[0] = -1;
 		}
 		contents[header] = '%' + key + '%';
+	};
+	const calculateTable = (table, calculations) => {
+		var calSteps = [], dataCol = [];
+		calculations.forEach((cal, i) => {
+			if (!cal) return;
+			var [lev, equ, line] = cal;
+			calSteps[lev] = calSteps[lev] || [];
+			calSteps[lev].push([i, parseEquation(equ, line, dataCol)]);
+		});
+
+		var dataList = [];
+		table.forEach((row, lineNum) => {
+			list = [];
+			dataCol.forEach(c => {
+				var num = row[c] * 1;
+				if (isNaN(num)) num = 0;
+				list[c] = num;
+			});
+			dataList.push(list);
+		});
+
+		calSteps.forEach(cals => {
+			if (!cals || cals.length === 0) return;
+			table.forEach((row, lineNum) => {
+				cals.forEach(([c, equ]) => {
+					var result = "";
+					try {
+						result = eval(equ);
+						result = result + '';
+					}
+					catch {
+						result = '';
+					}
+					row[c] = result;
+				});
+			});
+		});
+	};
+	const parseEquation = (equ, line, dataCol) => {
+		equ = equ
+		.replace(/([\w\d\(\)\+\-\*\/ ]+)(!+)/g, (match, num, lev) => {
+			return "MathTools.factorial(" + num + "," + lev.length + ")";
+		})
+		.replace(/(\w+)(\d+)/gi, (match, col, row) => {
+			if (!col || !row) return '0';
+			row = row * 1;
+			if (!Number.is(row)) return '0';
+			col = col.replace(/\w/g, char => Char2Dig[char.toLowerCase()]);
+			col = parseInt(col, 26);
+			if (isNaN(col)) return '0';
+			if (!dataCol.includes(col)) dataCol.push(col);
+			var delta = row - line;
+			if (delta === 0) return "((dataList[lineNum]||[])[" + col + ']||0)';
+			if (delta > 0) return "((dataList[lineNum+" + delta + "]||[])[" + col + ']||0)';
+			delta *= -1;
+			return "((dataList[lineNum-" + delta + "]||[])[" + col + ']||0)';
+		})
+		.replace(/(max|min|abs|sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|asinh|acosh|atanh|exp|log)/gi, operator => 'Math.' + operator.toLowerCase())
+		.replace(/per(mutate)?/gi, operator => 'MathTools.permutate')
+		.replace(/com(binate)?/gi, operator => 'MathTools.combinate');
+		return equ;
 	};
 	const parseTableRow = line => {
 		if (line.substr(0, 1) !== '|') line = '|' + line;
@@ -1979,6 +2132,7 @@
 		result.title = docTree.metas.title;
 		result.lineCount = docTree.metas.totalLineCount;
 		result.chapList = docTree.chapList;
+		result.tables = docTree.tables;
 
 		result.meta = {};
 		result.meta.author = docTree.metas.author;

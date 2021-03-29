@@ -329,7 +329,7 @@ let demoStr6 = "This 'is' a 'test'!";
 |内容1|内容2|
 |内容3|内容4|
 
-### 表格进阶（制作中）
+### 表格进阶
 
 MarkUp 的表格在 MarkDown 传统表格的基础上，还增加了一些新功能：
 
@@ -338,25 +338,29 @@ MarkUp 的表格在 MarkDown 传统表格的基础上，还增加了一些新功
 3.	图示功能（SVG）
 
 |> Equation <|
-|x{s}|y{s}|x + y{s}|x y{s}|max{s}|x1 + y0|x1 + y2|
+|x{s}|y{s}|x + y{s}|x y{s}|max{s}|x1 + y0|x1 + y2|test|
 |:-:|:-|-:|
-|1|9|CAL=(A1+B1)/2|CAL=A1*B1|CAL1=Max(A1,B1)|CAL5=(A1+B0)!!-C2|CAL3=A1+B2!|
-|3|6|
-|5|3|
-|7|0|
-|14|15
-|15|13|
-|16|11|
+|1|9|CAL=(A1+B1)/2|CAL=A1*B1|CAL1=Max(A1,B1)|CAL5=(A1+B0)-C2|CAL3=A1+B2|0|
+|3|6||||||0|
+|5|3||||||0|
+|7|0||||||0|
+|14|15||||||100|
+|15|13||||||10|
+|16|11||||||-1|
 
 CHART(Equation):points:点状图:A-C,D,E,F,G
 
-CHART(Equation):line:连线图:3-1,2,4,5
+CHART(Equation):lines:连线图:3-1,2,4,5
 
 CHART(Equation):area:连线覆盖图
 
 CHART(Equation):pie:饼状图:A-C,E,G
 
+CHART(Equation):pie:饼状图:A-C,E,B,H
+
 CHART(Equation):pie:饼状图:reverse
+
+CHART(Equation):column:柱状图:A-C,D,E,F,G
 
 这个功能就很神奇了吧！
 
@@ -369,9 +373,10 @@ CHART(Equation):pie:饼状图:reverse
 
 目前支持的图示包括：
 -	points: 点状图
--	line：连线图
+-	lines：连线图
 -	area：连线覆盖图
 -	pie：饼状图
+-	column：柱状图
 
 图示格式：`CHART(table_name):chart_type:chart_title:主行（列）-线1,线2...`
 

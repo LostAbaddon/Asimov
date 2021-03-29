@@ -46,7 +46,6 @@
 		y: 'o',
 		z: 'p',
 	};
-
 	const MathTools = {
 		factorial (num, lev=1) {
 			if (lev < 1) return 1;
@@ -66,7 +65,6 @@
 			return (total - num + 1) / num * MathTools.combinate(total, num - 1);
 		},
 	};
-
 	const PreserveWords = {
 		'\\': 'slash',
 		'/': 'antislash',
@@ -1366,7 +1364,7 @@
 				cals.forEach(([c, equ]) => {
 					var result = "";
 					try {
-						result = eval(equ);
+						result = equ(dataList, lineNum);
 						result = result + '';
 					}
 					catch {
@@ -1399,7 +1397,8 @@
 		.replace(/(max|min|abs|sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|asinh|acosh|atanh|exp|log)/gi, operator => 'Math.' + operator.toLowerCase())
 		.replace(/per(mutate)?/gi, operator => 'MathTools.permutate')
 		.replace(/com(binate)?/gi, operator => 'MathTools.combinate');
-		return equ;
+		equ = '(dataList,lineNum)=>' + equ;
+		return eval(equ);
 	};
 	const parseTableRow = line => {
 		if (line.substr(0, 1) !== '|') line = '|' + line;
@@ -2395,6 +2394,8 @@
 
 	MarkUp.SymHidden = SymHidden;
 	MarkUp.PreserveWords = PreserveWords;
+	MarkUp.Char2Dig = Char2Dig;
+	MarkUp.MathTools = MathTools;
 
 	try {
 		window.MarkUp = MarkUp;

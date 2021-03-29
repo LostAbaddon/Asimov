@@ -2,8 +2,8 @@
  *	Title: MarkUp Parser Extensions
  *	Author: LostAbaddon
  *	Email: LostAbaddon@gmail.com
- *	Version: 1.0.0
- *	Date: 2020.03.18
+ *	Version: 1.1.0
+ *	Date: 2021.03.27
  */
 
 const generateRandomKey = MarkUp.generateRandomKey;
@@ -592,3 +592,437 @@ MarkUp.addExtension({
 		return [line, changed];
 	},
 }, 0, 8);
+
+// 表格图示
+MarkUp.addExtension({
+	name: 'Chart',
+	parse: (line, doc, caches) => {
+		var changed = false;
+		line = line.replace(/^[ 　\t]*CHART\((.*?)\):(.*?):(.*?)(:(.*?))?[ 　\t]*$/, (match, table, style, title, nouse, lines) => {
+			var name = 'CHART-' + MarkUp.generateRandomKey();
+			doc.charts = doc.charts || {};
+			line = line || '';
+			doc.charts[name] = { table, style, title, lines };
+			changed = true;
+			return '[%' + name + '%]';
+		});
+		return [line, changed];
+	},
+}, 0, -1);
+MarkUp.addExtension({
+	name: 'Chart',
+	parse: (text, doc) => {
+		text = text.replace(/<[pP]>\[%(CHART-.*?)%\]<\/[pP]>/g, (match, id) => {
+			var { table, title, style, lines } = doc.charts[id];
+			var chartMaker = generateChart[style];
+			if (!chartMaker) {
+				return '<font color="red">所选图表样式（' + style + '）不存在！</font>';
+			}
+			table = doc.tables[table];
+			lines = getDatum(table, lines);
+
+			var svg = '<div class="table-chart"><svg width="' + SVGDefaultSize + '" height="' + SVGDefaultSize + '" viewbox=" 0 0 ' + SVGDefaultSize + ' ' + SVGDefaultSize + '">';
+			svg += chartMaker(lines, title);
+			svg += '</svg></div>';
+			return svg;
+		});
+		return text;
+	},
+}, 2, -1);
+
+// 寻找图表元素
+const SVGDefaultSize = 600;
+const SVGLineColors = [
+	'rgb(21, 85, 154)',
+	'rgb(18, 161, 130)',
+	'rgb(210, 177, 22)',
+	'rgb(255, 153, 0)',
+	'rgb(242, 107, 31)',
+	'rgb(244, 62, 6)',
+	'rgb(149, 28, 72)',
+	'rgb(126, 32, 101)',
+	'rgb(86, 152, 195)',
+	'rgb(41, 183, 203)',
+	'rgb(131, 203, 172)',
+	'rgb(150, 194, 78)',
+	'rgb(210, 217, 122)',
+	'rgb(183, 174, 143)',
+	'rgb(193, 101, 26)',
+	'rgb(100, 72, 61)',
+	'rgb(189, 174, 173)',
+	'rgb(227, 180, 184)',
+	'rgb(215, 196, 187)',
+	'rgb(190, 194, 63)',
+	'rgb(110, 117, 164)',
+	'rgb(46, 169, 223)'
+];
+const SVGDefaultFillOpacity = 0.4;
+const getDatum = (table, lines) => {
+	var last = '', isRow = true;
+	// 全部列
+	if (!lines) {
+		isRow = false;
+		let count = table[0].length;
+		lines = [];
+		for (let i = 1; i < count; i ++) {
+			lines.push([0, i]);
+		}
+	}
+	// 全部行
+	else if (lines === 'reverse') {
+		isRow = true;
+		let count = table.length;
+		lines = [];
+		for (let i = 1; i < count; i ++) {
+			lines.push([0, i]);
+		}
+	}
+	else {
+		lines = lines.split(',');
+		lines = lines.map(pair => {
+			pair = pair.split('-');
+			if (pair.length >= 2) {
+				last = pair[0];
+				let n = last * 1;
+				if (isNaN(n)) {
+					isRow = true;
+					n = parseInt(last.split('').map(n => MarkUp.Char2Dig[n.toLowerCase()] || n).join(''), 26);
+					last = n;
+				}
+				else {
+					isRow = false;
+					last = n;
+				}
+				pair[0] = last;
+				pair.splice(2, pair.length - 2);
+			}
+			else if (pair.length === 1) {
+				pair[1] = pair[0];
+				pair[0] = last;
+			}
+			return pair;
+		}).filter(pair => pair.length === 2);
+		lines.forEach(pair => {
+			var n = pair[1];
+			var m = n * 1;
+			if (isNaN(m)) {
+				m = parseInt(n.split('').map(n => MarkUp.Char2Dig[n.toLowerCase()] || n).join(''), 26);
+			}
+			pair[1] = m;
+		});
+	}
+
+	var datum = [];
+	if (isRow) {
+		lines.forEach(([main, value]) => {
+			var count = table.length;
+			var dataLine = [];
+			for (let i = 0; i < count; i ++) {
+				let v = table[i][value] * 1;
+				if (Number.is(v)) dataLine.push([table[i][main], v]);
+			}
+			if (dataLine.length > 0) datum.push(dataLine);
+		});
+	}
+	else {
+		lines.forEach(([main, value]) => {
+			main = table[main];
+			value = table[value];
+			if (!main || !value) return;
+			var count = main.length;
+			var dataLine = [];
+			for (let i = 0; i < count; i ++) {
+				let v = value[i] * 1;
+				if (Number.is(v)) dataLine.push([main[i], v]);
+			}
+			if (dataLine.length > 0) datum.push(dataLine);
+		});
+	}
+
+	return datum;
+};
+// 生成图表
+const generateChart = {
+	_drawText (x, y, text, color='black', bold=false) {
+		var svg = '<text x="' + x + '" y="' + y + '"'
+		if (!!color) svg += ' fill="' + color + '"'
+		if (!!bold) svg += ' font-weight="bold"'
+		svg += '>' + text + '</text>';
+		return svg;
+	},
+	_drawLine (x1, y1, x2, y2, w, color="black") {
+		var svg = '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"';
+		if (!!color && !!w) svg += ' stroke="' + color + '" stroke-width="' + w + '"';
+		svg += ' />';
+		return svg;
+	},
+	_drawRect (x, y, w, h, fill, stroke, s) {
+		var svg = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"';
+		if (!!fill) svg += ' fill="' + fill + '"';
+		if (!!stroke && !!s) svg += ' stroke="' + stroke + '" stroke-width="' + s + '"'
+		svg += ' />';
+		return svg;
+	},
+	_drawCircle (x, y, r, fill, stroke, s) {
+		var svg = '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"';
+		if (!!fill) svg += ' fill="' + fill + '"';
+		if (!!stroke && !!s) svg += ' stroke="' + stroke + '" stroke-width="' + s + '"'
+		svg += ' />';
+		return svg;
+	},
+	_drawPolygon (points, fill, stroke, s) {
+		points = points.map(p => p.join(',')).join(' ');
+		var svg = '<polygon points="' + points + '"';
+		if (!!fill) svg += ' fill="' + fill + '"';
+		if (!!stroke && !!s) svg += ' stroke="' + stroke + '" stroke-width="' + s + '"'
+		svg += ' />';
+		return svg;
+	},
+	_background (lines, title, isNum, fromZero=false, noLine=false) {
+		var xmin = Infinity, xmax = 0, ymin = Infinity, ymax = 0, sets = [], xstep, ystep;
+		if (isNum) {
+			lines.forEach(line => {
+				line.forEach(pair => {
+					var x = pair[0] * 1;
+					if (isNaN(x)) x = 0;
+					pair[0] = x;
+					if (x > xmax) xmax = x;
+					if (x < xmin) xmin = x;
+					if (!sets.includes(x)) sets.push(x);
+				});
+			});
+			sets.sort((a, b) => a - b);
+		}
+		else {
+			lines.forEach(line => {
+				line.forEach(pair => {
+					var x = pair[0];
+					if (!sets.includes(x)) sets.push(x);
+				});
+			});
+			xmin = 0;
+			xmax = sets.length;
+		}
+		var xfrom = xmin, xto = xmax;
+		if (xmin === xmax) {
+			xmin -= 0.5;
+			xmax += 0.5;
+			xstep = 0.1;
+		}
+		else {
+			let delta = xmax - xmin;
+			delta *= 0.05;
+			xmin -= delta;
+			xmax += delta;
+			xstep = delta / 5;
+		}
+
+		lines.forEach(line => {
+			line.forEach(pair => {
+				var y = pair[1];
+				if (y > ymax) ymax = y;
+				if (y < ymin) ymin = y;
+			});
+		});
+		if (fromZero) {
+			if (ymin > 0) ymin = 0;
+			if (ymax < 0) ymax = 0;
+		}
+		var yfrom = ymin, yto = ymax;
+		if (ymin === ymax) {
+			ymin -= 0.5;
+			ymax += 0.5;
+			ystep = 0.1;
+		}
+		else {
+			delta = ymax - ymin;
+			delta *= 0.05;
+			ymin -= delta;
+			ymax += delta;
+			ystep = delta / 5;
+		}
+
+		var svg = [generateChart._drawRect(0, 0, SVGDefaultSize, SVGDefaultSize, 'white')];
+		svg.push(generateChart._drawText(SVGDefaultSize / 2 - title.length * 16 / 2, 16 + 1, title, 'black', true));
+
+		if (noLine) {
+			return [svg.join(''), { xmin, xmax, ymin, ymax, xfrom, xto, yfrom, yto, sets }];
+		}
+
+		svg.push(generateChart._drawLine(
+			((xfrom - xmin) / (xmax - xmin) * SVGDefaultSize), ((ymax - yfrom) / (ymax - ymin) * SVGDefaultSize),
+			((xto - xmin) / (xmax - xmin) * SVGDefaultSize), ((ymax - yfrom) / (ymax - ymin) * SVGDefaultSize),
+			1
+		));
+		svg.push(generateChart._drawLine(
+			((xfrom - xmin) / (xmax - xmin) * SVGDefaultSize), ((ymax - yfrom) / (ymax - ymin) * SVGDefaultSize),
+			((xfrom - xmin) / (xmax - xmin) * SVGDefaultSize), ((ymax - yto) / (ymax - ymin) * SVGDefaultSize),
+			1
+		));
+		if (isNum) {
+			sets.forEach(point => {
+				svg.push(generateChart._drawLine(
+					((point - xmin) / (xmax - xmin) * SVGDefaultSize), ((ymax - yfrom) / (ymax - ymin) * SVGDefaultSize),
+					((point - xmin) / (xmax - xmin) * SVGDefaultSize), ((ymax - yfrom + ystep) / (ymax - ymin) * SVGDefaultSize),
+					1
+				));
+				var tag = point + '';
+				var offsetX = tag.length * 8 / 2;
+				svg.push(generateChart._drawText(
+					((point - xmin) / (xmax - xmin) * SVGDefaultSize - offsetX),
+					((ymax - yfrom + ystep * 1.5) / (ymax - ymin) * SVGDefaultSize + 16),
+					point)
+				);
+			});
+		}
+		else {
+			let step = (xto - xfrom) / (sets.length + 1);
+			sets.forEach((tag, i) => {
+				var x = ((i + 1) * step - xmin) / (xmax - xmin) * SVGDefaultSize;
+				svg.push(generateChart._drawLine(
+					x, ((ymax - yfrom) / (ymax - ymin) * SVGDefaultSize),
+					x, ((ymax - yfrom + ystep) / (ymax - ymin) * SVGDefaultSize),
+					1
+				));
+				var offset = tag.length * 8 / SVGDefaultSize / 2 * SVGDefaultSize;
+				svg.push(generateChart._drawText(
+					(x - offset),
+					((ymax - yfrom + ystep * 1.5) / (ymax - ymin) * SVGDefaultSize + 16),
+					tag)
+				);
+			});
+		}
+
+		return [svg.join(''), { xmin, xmax, ymin, ymax, xfrom, xto, yfrom, yto, sets }];
+	},
+	points (lines, title) {
+		var [svg, range] = generateChart._background(lines, title, true);
+		svg = [svg];
+		lines.forEach((line, c) => {
+			c -= Math.floor(c / SVGLineColors.length) * SVGLineColors.length;
+			c = SVGLineColors[c];
+			line.forEach(point => {
+				svg.push(generateChart._drawCircle(
+					((point[0] - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
+					((range.ymax - point[1]) / (range.ymax - range.ymin) * SVGDefaultSize),
+					2.5, c
+				));
+			});
+		});
+		return svg.join('');
+	},
+	lines (lines, title) {
+		var [svg, range] = generateChart._background(lines, title, true);
+		svg = [svg];
+		lines.forEach((line, c) => {
+			c -= Math.floor(c / SVGLineColors.length) * SVGLineColors.length;
+			c = SVGLineColors[c];
+			line.sort((pa, pb) => pa[0] - pb[0]);
+			var lastX = 0, lastY = 0;
+			line.forEach((point, i) => {
+				var x = ((point[0] - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize);
+				var y = ((range.ymax - point[1]) / (range.ymax - range.ymin) * SVGDefaultSize);
+				svg.push(generateChart._drawCircle(x, y, 2.5, c));
+				if (i > 0) svg.push(generateChart._drawLine(lastX, lastY, x, y, 1, c));
+				lastX = x;
+				lastY = y;
+			});
+		});
+		return svg.join('');
+	},
+	area (lines, title) {
+		var [svg, range] = generateChart._background(lines, title, true);
+		svg = [svg];
+		lines.forEach((line, c) => {
+			c -= Math.floor(c / SVGLineColors.length) * SVGLineColors.length;
+			c = SVGLineColors[c];
+			line.sort((pa, pb) => pa[0] - pb[0]);
+			var pointList = [];
+			pointList.push([
+				((range.xto - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
+				((range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize)
+			]);
+			pointList.push([
+				((range.xfrom - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
+				((range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize)
+			]);
+			line.forEach((point, i) => {
+				var x = ((point[0] - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize);
+				var y = ((range.ymax - point[1]) / (range.ymax - range.ymin) * SVGDefaultSize);
+				svg.push(generateChart._drawCircle(x, y, 2.5, c));
+				pointList.push([x, y]);
+			});
+			var fill = c.replace(/rgb/i, 'rgba').replace(')', ',' + SVGDefaultFillOpacity + ')');
+			svg.push(generateChart._drawPolygon(pointList, fill, c, 1));
+		});
+		return svg.join('');
+	},
+	pie (lines, title) {
+		var [svg, range] = generateChart._background(lines, title, false, false, true);
+		var max = 0;
+		lines.forEach(line => {
+			var total = 0;
+			line.forEach(point => {
+				if (point[1] <= 0) return;
+				total += point[1];
+			});
+			if (total > max) max = total;
+		});
+
+		var radius = SVGDefaultSize / 2 * 0.9;
+		var count = lines.length + (lines.length - 1) * 0.1, lastR = 0, stepR = radius / count;
+		svg = [svg];
+		lines.forEach((line, i) => {
+			var r = (i + 1 + i * 0.1) * stepR;
+			var lastXOut = SVGDefaultSize / 2 - r, lastYOut = SVGDefaultSize / 2;
+			var lastXIn = SVGDefaultSize / 2 - lastR, lastYIn = SVGDefaultSize / 2;
+			var total = 0;
+			line.forEach((point, j) => {
+				if (point[1] <= 0) return;
+				var color = j - Math.floor(j / SVGLineColors.length) * SVGLineColors.length;
+				color = SVGLineColors[color];
+				total += point[1];
+				var flag = (point[1] * 2 > max) ? 1 : 0;
+				var angle = total / max * Math.PI * 2;
+				var sin = Math.sin(angle), cos = Math.cos(angle);
+				var xOut = SVGDefaultSize / 2 - cos * r, yOut = SVGDefaultSize / 2 - sin * r;
+				var xIn = SVGDefaultSize / 2 - cos * lastR, yIn = SVGDefaultSize / 2 - sin * lastR;
+				svg.push('<path fill="' + color + '" d="M '
+					+ lastXIn + ' ' + lastYIn
+					+ ' L ' + lastXOut + ' ' + lastYOut
+					+ ' A ' + r + ' ' + r + ' 0 ' + flag + ' 1 ' + xOut + ' ' + yOut
+					+ ' L ' + xIn + ' ' + yIn
+					+ ' A ' + lastR + ' ' + lastR + ' 0 ' + flag + ' 0 ' + lastXIn + ' ' + lastYIn
+					+ ' Z" />');
+				lastXOut = xOut;
+				lastYOut = yOut;
+				lastXIn = xIn;
+				lastYIn = yIn;
+			});
+			lastR = r + 0.1 * stepR;
+		});
+
+		return svg;
+	},
+	column (lines, title) {
+		var [svg, range] = generateChart._background(lines, title, false, true);
+		svg = [svg];
+		var step = (range.xto - range.xfrom) / (range.sets.length + 1);
+		var delta = step / (lines.length + 2) / (range.xmax - range.xmin) * SVGDefaultSize, span = delta * lines.length / 2;
+		var y0 = (range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize;
+		lines.forEach((line, j) => {
+			var c = j - Math.floor(j / SVGLineColors.length) * SVGLineColors.length;
+			c = SVGLineColors[c];
+			var move = delta * j - span;
+			line.forEach((point, i) => {
+				var j = range.sets.indexOf(point[0]);
+				if (j < 0) return;
+
+				var x = ((j + 1) * step - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize + move;
+				var y = (range.ymax - point[1]) / (range.ymax - range.ymin) * SVGDefaultSize;
+				svg.push(generateChart._drawRect(x, y, delta, y0 - y, c));
+			});
+		});
+		return svg.join('');
+	},
+};

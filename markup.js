@@ -64,6 +64,24 @@
 			if (num >= total) return 1;
 			return (total - num + 1) / num * MathTools.combinate(total, num - 1);
 		},
+		round (num, level=0) {
+			var l = 10 ** level;
+			num *= l;
+			num = Math.round(num);
+			return num / l;
+		},
+		floor (num, level=0) {
+			var l = 10 ** level;
+			num *= l;
+			num = Math.floor(num);
+			return num / l;
+		},
+		ceil (num, level=0) {
+			var l = 10 ** level;
+			num *= l;
+			num = Math.ceil(num);
+			return num / l;
+		},
 	};
 	const PreserveWords = {
 		'\\': 'slash',
@@ -1286,7 +1304,7 @@
 		var calculations = [];
 		rows.forEach((row, j) => {
 			row.forEach((col, i) => {
-				var match = col.match(/^CAL(\d*)=[ 　\t]*(.*)[ 　\t]*$/);
+				var match = col.match(/^[ 　\t]*CAL(\d*)=[ 　\t]*(.*)[ 　\t]*$/);
 				if (!match) return;
 				var level = match[1] * 1;
 				if (isNaN(level) || level < 1) level = 1;
@@ -1358,13 +1376,15 @@
 			dataList.push(list);
 		});
 
-		calSteps.forEach(cals => {
+		calSteps.forEach((cals) => {
 			if (!cals || cals.length === 0) return;
 			table.forEach((row, lineNum) => {
 				cals.forEach(([c, equ]) => {
 					var result = "";
 					try {
 						result = equ(dataList, lineNum);
+						dataList[lineNum] = dataList[lineNum] || [];
+						dataList[lineNum][c] = result;
 						result = result + '';
 					}
 					catch {
@@ -1377,10 +1397,10 @@
 	};
 	const parseEquation = (equ, line, dataCol) => {
 		equ = equ
-		.replace(/([\w\d\(\)\+\-\*\/ ]+)(!+)/g, (match, num, lev) => {
+		.replace(/([\w\(\)\+\-\*\/ ]+)(!+)/g, (match, num, lev) => {
 			return "MathTools.factorial(" + num + "," + lev.length + ")";
 		})
-		.replace(/(\w+)(\d+)/gi, (match, col, row) => {
+		.replace(/([a-zA-Z]+)(\d+)/gi, (match, col, row) => {
 			if (!col || !row) return '0';
 			row = row * 1;
 			if (row * 1 !== row) return '0';
@@ -1396,7 +1416,10 @@
 		})
 		.replace(/(max|min|abs|sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|asinh|acosh|atanh|exp|log)/gi, operator => 'Math.' + operator.toLowerCase())
 		.replace(/per(mutate)?/gi, operator => 'MathTools.permutate')
-		.replace(/com(binate)?/gi, operator => 'MathTools.combinate');
+		.replace(/com(binate)?/gi, operator => 'MathTools.combinate')
+		.replace(/round/gi, operator => 'MathTools.round')
+		.replace(/ceil/gi, operator => 'MathTools.ceil')
+		.replace(/floor/gi, operator => 'MathTools.floor');
 		equ = '(dataList,lineNum)=>' + equ;
 		return eval(equ);
 	};

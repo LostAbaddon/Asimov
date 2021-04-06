@@ -1383,7 +1383,7 @@
 		.replace(/(\w+)(\d+)/gi, (match, col, row) => {
 			if (!col || !row) return '0';
 			row = row * 1;
-			if (!Number.is(row)) return '0';
+			if (row * 1 !== row) return '0';
 			col = col.replace(/\w/g, char => Char2Dig[char.toLowerCase()]);
 			col = parseInt(col, 26);
 			if (isNaN(col)) return '0';

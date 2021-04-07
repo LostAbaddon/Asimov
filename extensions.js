@@ -2,8 +2,8 @@
  *	Title: MarkUp Parser Extensions
  *	Author: LostAbaddon
  *	Email: LostAbaddon@gmail.com
- *	Version: 1.1.0
- *	Date: 2021.03.27
+ *	Version: 1.1.1
+ *	Date: 2021.04.07
  */
 
 const generateRandomKey = MarkUp.generateRandomKey;
@@ -618,8 +618,9 @@ MarkUp.addExtension({
 			if (!chartMaker) {
 				return '<font color="red">所选图表样式（' + style + '）不存在！</font>';
 			}
-			table = doc.tables[table];
-			lines = getDatum(table, lines);
+			var tbl = doc.tables[table];
+			if (!tbl) return '<font color="red">所选图表（' + table + '）不存在！</font>';
+			lines = getDatum(tbl, lines);
 
 			var svg = '<div class="table-chart"><svg width="' + SVGDefaultSize + '" height="' + SVGDefaultSize + '" viewbox=" 0 0 ' + SVGDefaultSize + ' ' + SVGDefaultSize + '">';
 			svg += chartMaker(lines, title);
@@ -719,7 +720,7 @@ const getDatum = (table, lines) => {
 			var dataLine = [];
 			for (let i = 0; i < count; i ++) {
 				let v = table[i][value] * 1;
-				if (Number.is(v)) dataLine.push([table[i][main], v]);
+				if (v * 1 === v) dataLine.push([table[i][main], v]);
 			}
 			if (dataLine.length > 0) datum.push(dataLine);
 		});
@@ -733,7 +734,7 @@ const getDatum = (table, lines) => {
 			var dataLine = [];
 			for (let i = 0; i < count; i ++) {
 				let v = value[i] * 1;
-				if (Number.is(v)) dataLine.push([main[i], v]);
+				if (v * 1 === v) dataLine.push([main[i], v]);
 			}
 			if (dataLine.length > 0) datum.push(dataLine);
 		});

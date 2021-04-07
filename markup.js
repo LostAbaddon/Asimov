@@ -2,8 +2,8 @@
  *	Title: MarkUp Parser
  *	Author: LostAbaddon
  *	Email: LostAbaddon@gmail.com
- *	Version: 1.1.0
- *	Date: 2021.03.27
+ *	Version: 1.1.1
+ *	Date: 2021.04.07
  */
 
 (() => {
@@ -1195,12 +1195,16 @@
 
 	const generateTable = (table, blocks, blockMap, contents, doc, caches) => {
 		var hasHead = true, name = null;
-		var cfgLine = null, cfgID = -1;
+		var cfgLine = null, cfgID = -1, tableHidden = false;
 
 		// 提取表格名，必须唯一第一行
 		name = contents[table[0][0]].match(/\|>[ 　\t]*(.*)[ 　\t]*<\|/);
 		if (!!name) {
 			name = name[1].trim();
+			if (name.match(/\{h\}/i)) {
+				tableHidden = true;
+				name = name.replace(/\{h\}/gi, '').replace(/(^[ 　\t]+|[ 　\t]+$)/g, '');
+			}
 			contents[table[0][0]] = '';
 			table.shift();
 		}
@@ -1275,7 +1279,11 @@
 		}
 
 		// 生成表格正文
-		var html = '<table name="' + name + '">';
+		var html = '<table name="' + name + '"', hiddenColumns = [];
+		if (tableHidden) {
+			html += ' hidden="true"';
+		}
+		html += '>';
 		if (hasHead) {
 			html += '<thead><tr>';
 			header.forEach((col, i) => {
@@ -1283,6 +1291,12 @@
 				if (!!col.match(/\{s\}$/i)) {
 					sortable = true;
 					col = col.replace(/[ 　\t]*\{s\}$/i, '');
+				}
+				var hidden = false;
+				if (!!col.match(/\{h\}$/i)) {
+					hiddenColumns[i] = true;
+					hidden = true;
+					col = col.replace(/[ 　\t]*\{h\}$/i, '');
 				}
 				col = parseLine(col, doc);
 				var ui = '<th align="';
@@ -1293,7 +1307,9 @@
 				if (sortable) {
 					ui += '" sortable="true';
 				}
-				ui += '">' + col + '</td>';
+				ui += '"';
+				if (hidden) ui += ' hidden="true"';
+				ui += '>' + col + '</td>';
 				html += ui;
 			});
 			html += '</tr></thead>';
@@ -1329,7 +1345,9 @@
 				if (c === 1) ui += 'center';
 				else if (c === 2) ui += 'right';
 				else ui += 'left';
-				ui += '">' + col + '</td>';
+				ui += '"';
+				if (hiddenColumns[i]) ui += ' hidden="true"';
+				ui += '>' + col + '</td>';
 				html += ui;
 			});
 			html += '</tr>';

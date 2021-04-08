@@ -333,7 +333,7 @@ let demoStr6 = "This 'is' a 'test'!";
 
 MarkUp 的表格在 MarkDown 传统表格的基础上，还增加了一些新功能：
 
-1.	排序（需要页面端支持）
+1.	排序（需要页面端支持，可点[这里](https://lostabaddon.github.io/#/markup)查看效果）
 2.	简单公式（不受排序影响）
 3.	图示功能（SVG）
 
@@ -387,7 +387,17 @@ CHART(Equation):pie:饼状图:reverse
 
 CHART(Equation):column:柱状图:A-C,D,E,F,G
 
+CHART(Equation):area:非从零开始覆盖图:A-F:false
+
+CHART(Equation):area:从零开始覆盖图:A-F:yes
+
+CHART(Equation):column:非从零开始柱状图:A-F:false
+
+CHART(Equation):column:从零开始柱状图:A-F:yes
+
 这个功能就很神奇了吧！
+
+更加神奇的是动画效果哦！
 
 目前支持的函数包括：
 -	四则混合运算，阶乘，幂次
@@ -616,6 +626,10 @@ MarkUp 结合了 ORG 文档的元数据结构，这些元数据平时用户是�
 
 > [danger] {|}当然，还有一个没什么用的隐藏元数据，这里就不写明了，嘿嘿嘿~~~
 
+
++++
+
+{|}完整演示效果可以[点击这里](https://lostabaddon.github.io/#/markup)查看。
 
 ---
 

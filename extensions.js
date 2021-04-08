@@ -598,11 +598,11 @@ MarkUp.addExtension({
 	name: 'Chart',
 	parse: (line, doc, caches) => {
 		var changed = false;
-		line = line.replace(/^[ 　\t]*CHART\((.*?)\):(.*?):(.*?)(:(.*?))?[ 　\t]*$/, (match, table, style, title, nouse, lines) => {
+		line = line.replace(/^[ 　\t]*CHART\((.*?)\):(.*?):(.*?)(:(.*?))?(:(.*?))?[ 　\t]*$/, (match, table, style, title, nouse1, lines, nouse2, params) => {
 			var name = 'CHART-' + MarkUp.generateRandomKey();
 			doc.charts = doc.charts || {};
 			line = line || '';
-			doc.charts[name] = { table, style, title, lines };
+			doc.charts[name] = { table, style, title, lines, params };
 			changed = true;
 			return '[%' + name + '%]';
 		});
@@ -613,7 +613,7 @@ MarkUp.addExtension({
 	name: 'Chart',
 	parse: (text, doc) => {
 		text = text.replace(/<[pP]>\[%(CHART-.*?)%\]<\/[pP]>/g, (match, id) => {
-			var { table, title, style, lines } = doc.charts[id];
+			var { table, title, style, lines, params } = doc.charts[id];
 			var chartMaker = generateChart[style];
 			if (!chartMaker) {
 				return '<font color="red">所选图表样式（' + style + '）不存在！</font>';
@@ -623,7 +623,7 @@ MarkUp.addExtension({
 			lines = getDatum(tbl, lines);
 
 			var svg = '<div class="table-chart"><svg width="' + SVGDefaultSize + '" height="' + SVGDefaultSize + '" viewbox=" 0 0 ' + SVGDefaultSize + ' ' + SVGDefaultSize + '">';
-			svg += chartMaker(lines, title);
+			svg += chartMaker(lines, title, params);
 			svg += '</svg></div>';
 			return svg;
 		});
@@ -758,6 +758,14 @@ const generateChart = {
 		return svg;
 	},
 	_drawRect (x, y, w, h, fill, stroke, s) {
+		if (w < 0) {
+			x += w;
+			w = -w;
+		}
+		if (h < 0) {
+			y += h;
+			h = -h;
+		}
 		var svg = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"';
 		if (!!fill) svg += ' fill="' + fill + '"';
 		if (!!stroke && !!s) svg += ' stroke="' + stroke + '" stroke-width="' + s + '"'
@@ -931,22 +939,37 @@ const generateChart = {
 		});
 		return svg.join('');
 	},
-	area (lines, title) {
-		var [svg, range] = generateChart._background(lines, title, true);
+	area (lines, title, fromZero) {
+		fromZero = (fromZero || '').toLowerCase();
+		if (fromZero === 'true' || fromZero === 'yes') fromZero = true;
+		else fromZero = false;
+		var [svg, range] = generateChart._background(lines, title, true, fromZero);
 		svg = [svg];
 		lines.forEach((line, c) => {
 			c -= Math.floor(c / SVGLineColors.length) * SVGLineColors.length;
 			c = SVGLineColors[c];
 			line.sort((pa, pb) => pa[0] - pb[0]);
 			var pointList = [];
-			pointList.push([
-				((range.xto - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
-				((range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize)
-			]);
-			pointList.push([
-				((range.xfrom - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
-				((range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize)
-			]);
+			if (fromZero) {
+				pointList.push([
+					((range.xto - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
+					((range.ymax - 0) / (range.ymax - range.ymin) * SVGDefaultSize)
+				]);
+				pointList.push([
+					((range.xfrom - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
+					((range.ymax - 0) / (range.ymax - range.ymin) * SVGDefaultSize)
+				]);
+			}
+			else {
+				pointList.push([
+					((range.xto - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
+					((range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize)
+				]);
+				pointList.push([
+					((range.xfrom - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize),
+					((range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize)
+				]);
+			}
 			line.forEach((point, i) => {
 				var x = ((point[0] - range.xmin) / (range.xmax - range.xmin) * SVGDefaultSize);
 				var y = ((range.ymax - point[1]) / (range.ymax - range.ymin) * SVGDefaultSize);
@@ -1005,12 +1028,21 @@ const generateChart = {
 
 		return svg;
 	},
-	column (lines, title) {
-		var [svg, range] = generateChart._background(lines, title, false, true);
+	column (lines, title, fromZero) {
+		fromZero = (fromZero || '').toLowerCase();
+		if (fromZero === 'true' || fromZero === 'yes') fromZero = true;
+		else fromZero = false;
+		var [svg, range] = generateChart._background(lines, title, false, fromZero);
 		svg = [svg];
 		var step = (range.xto - range.xfrom) / (range.sets.length + 1);
 		var delta = step / (lines.length + 2) / (range.xmax - range.xmin) * SVGDefaultSize, span = delta * lines.length / 2;
-		var y0 = (range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize;
+		var y0;
+		if (fromZero) {
+			y0 = (range.ymax - 0) / (range.ymax - range.ymin) * SVGDefaultSize;
+		}
+		else {
+			y0 = (range.ymax - range.yfrom) / (range.ymax - range.ymin) * SVGDefaultSize;
+		}
 		lines.forEach((line, j) => {
 			var c = j - Math.floor(j / SVGLineColors.length) * SVGLineColors.length;
 			c = SVGLineColors[c];

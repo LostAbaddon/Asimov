@@ -1339,7 +1339,7 @@
 			row.forEach((col, i) => {
 				col = parseLine(col, doc);
 				var value = col.replace(/<.*?>/gi, '');
-				dataRow[i] = value;
+				dataRow[i] = value.trim();
 				var ui = '<td align="';
 				var c = cfgLine[i];
 				if (c === 1) ui += 'center';

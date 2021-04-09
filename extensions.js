@@ -606,6 +606,14 @@ MarkUp.addExtension({
 			changed = true;
 			return '[%' + name + '%]';
 		});
+		line = line.replace(/^[ 　\t]*ANIMATE\((.*?)\):(.*?):(.*?)(:(.*?))?(:(.*?))?[ 　\t]*$/, (match, table, style, title, nouse1, lines, nouse2, params) => {
+			var name = 'ANIMATE-' + MarkUp.generateRandomKey();
+			doc.animates = doc.animates || {};
+			line = line || '';
+			doc.animates[name] = { table, style, title, lines, params };
+			changed = true;
+			return '[%' + name + '%]';
+		});
 		return [line, changed];
 	},
 }, 0, -1);
@@ -613,19 +621,32 @@ MarkUp.addExtension({
 	name: 'Chart',
 	parse: (text, doc) => {
 		text = text.replace(/<[pP]>\[%(CHART-.*?)%\]<\/[pP]>/g, (match, id) => {
-			var { table, title, style, lines, params } = doc.charts[id];
+			var { table, title, style, lines, params } = (doc.charts[id] || {});
 			var chartMaker = generateChart[style];
 			if (!chartMaker) {
 				return '<font color="red">所选图表样式（' + style + '）不存在！</font>';
 			}
 			var tbl = doc.tables[table];
 			if (!tbl) return '<font color="red">所选图表（' + table + '）不存在！</font>';
-			lines = getDatum(tbl, lines);
 
+			lines = getDatum(tbl, lines);
 			var svg = '<div class="table-chart"><svg width="' + SVGDefaultSize + '" height="' + SVGDefaultSize + '" viewbox=" 0 0 ' + SVGDefaultSize + ' ' + SVGDefaultSize + '">';
 			svg += chartMaker(lines, title, params);
 			svg += '</svg></div>';
 			return svg;
+		});
+		text = text.replace(/<[pP]>\[%(ANIMATE-.*?)%\]<\/[pP]>/g, (match, id) => {
+			var { table, title, style, lines, params } = (doc.animates[id] || {});
+			var animateMaker = generateAnimate[style];
+			if (!animateMaker) {
+				return '<font color="red">所选动画图表样式（' + style + '）不存在！</font>';
+			}
+			var tbl = doc.tables[table];
+			if (!tbl) return '<font color="red">所选动画图表（' + table + '）不存在！</font>';
+
+			lines = getDatum(tbl, lines, false);
+			var animate = animateMaker(lines, title, params);
+			return animate;
 		});
 		return text;
 	},
@@ -658,10 +679,10 @@ const SVGLineColors = [
 	'rgb(46, 169, 223)'
 ];
 const SVGDefaultFillOpacity = 0.4;
-const getDatum = (table, lines) => {
+const getDatum = (table, lines, defaultZero=true) => {
 	var last = '', isRow = true;
 	// 全部列
-	if (!lines) {
+	if (!lines || lines === 'all') {
 		isRow = false;
 		let count = table[0].length;
 		lines = [];
@@ -719,8 +740,13 @@ const getDatum = (table, lines) => {
 			var count = table.length;
 			var dataLine = [];
 			for (let i = 0; i < count; i ++) {
-				let v = table[i][value] * 1;
-				if (v * 1 === v) dataLine.push([table[i][main], v]);
+				let n = table[i][value] || '';
+				let v = n * 1;
+				if (n.length === 0 || isNaN(v)) {
+					if (defaultZero) v = 0;
+					else v = n;
+				}
+				dataLine.push([table[i][main], v]);
 			}
 			if (dataLine.length > 0) datum.push(dataLine);
 		});
@@ -733,8 +759,13 @@ const getDatum = (table, lines) => {
 			var count = main.length;
 			var dataLine = [];
 			for (let i = 0; i < count; i ++) {
-				let v = value[i] * 1;
-				if (v * 1 === v) dataLine.push([main[i], v]);
+				let n = value[i] || '';
+				let v = n * 1;
+				if (n.length === 0 || isNaN(v)) {
+					if (defaultZero) v = 0
+					else v = n;
+				}
+				dataLine.push([main[i], v]);
 			}
 			if (dataLine.length > 0) datum.push(dataLine);
 		});
@@ -1057,5 +1088,48 @@ const generateChart = {
 			});
 		});
 		return svg.join('');
+	},
+};
+const generateAnimate = {
+	barsanime (lines, title, params) {
+		params = params.split(',').map(n => n * 1);
+		var [count, duration, repeat] = params;
+		if (isNaN(count)) count = 3;
+		if (isNaN(duration)) duration = 500;
+		if (isNaN(repeat)) repeat = -1;
+
+		// 过滤
+		var items = [true]; // 代际项必须保留
+		lines.forEach(line => {
+			var xs = line.map((x, i) => [...x, i]);
+			xs.sort((a, b) => b[1] - a[1]);
+			if (xs.length > count) xs.splice(count, xs.length - count);
+			xs.forEach(item => items[item[2]] = true);
+		});
+		lines = lines.map(line => {
+			return line.filter((item, i) => items[i]);
+		});
+		var names = [];
+		lines = lines.map(line => {
+			return line.map((x, i) => {
+				names[i] = x[0];
+				return x[1];
+			});
+		});
+
+		var html = ['<div class="animate-chart" duration="' + duration + '" repeatWait="' + repeat + '" barCount="' + count + '" hint="' + names[0] + '">'];
+		html.push('<div class="animate-chart-title">' + title + '<span class="animate-chart-title-hint"></span>' + '</div>');
+		html.push('<div class="animate-chart-panel">');
+		names.forEach((name, i) => {
+			if (i === 0) return;
+			html.push('<div class="animate-chart-bar" index="' + i + '"><span class="animate-chart-bar-title">' + name + '</span><span class="animate-chart-bar-value"></span></div>')
+		});
+		if (repeat <= 0) {
+			html.push('<div class="animate-chart-replay"></div>');
+		}
+		html.push('</div>');
+		html.push('<div class="animate-chart-data" style="display:none;">' + JSON.stringify(lines) + '</div>');
+		html.push('</div>');
+		return html.join('');
 	},
 };

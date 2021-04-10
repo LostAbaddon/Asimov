@@ -2068,6 +2068,37 @@
 			toced: false,
 		};
 
+		config = config || {};
+
+		var wordCount = text
+			.replace(/\n标题[:：][ 　\t]*/gi, '\n')
+			.replace(/\n作者[:：][ 　\t]*/gi, '\n')
+			.replace(/\n简介[:：][ 　\t]*/gi, '\n')
+			.replace(/\n关键词[:：][ 　\t]*/gi, '\n')
+			.replace(/\n更新[:：][ 　\t]*/gi, '\n')
+		;
+		MetaWords.forEach(key => {
+			var reg = new RegExp('\n' + key + '[:：][ 　\\t]*', 'gi');
+			wordCount = wordCount.replace(reg, '\n');
+		});
+		PreservedKeywords.forEach(key => {
+			var reg = new RegExp('\\[' + key + '\\]', 'gi');
+			wordCount = wordCount.replace(reg, '');
+		});
+		while (true) {
+			let next = wordCount
+				.replace(/\[(.*?)\][ 　\t]*\[.*?\]/g, (match, inner) => inner)
+				.replace(/\[(.*?)\][ 　\t]*\{.*?\}/g, (match, inner) => inner)
+				.replace(/\[(.*?)\][ 　\t]*\(.*?\)/g, (match, inner) => inner)
+				.replace(/<\w.*?\w>|<\w>/g, '')
+				.replace(/\n[ 　\t]*(\-+|\++|#+|>|=+|\*+|~+|`+|\$+|\d+\.)[ 　\t]*/g, '\n')
+			;
+			if (wordCount === next) break;
+			wordCount = next;
+		}
+		wordCount = wordCount.match(/[\u4e00-\u9fa5]|[a-zA-Z0-9]+/gi) || '';
+		wordCount = wordCount.length || 0;
+
 		text = prepare(text);
 		text = getMetas(docTree, text);
 		docTree.parseLevel = 0;
@@ -2197,11 +2228,13 @@
 			result.blocks[name] = docTree.blocks[name];
 		});
 
+		result.wordCount = wordCount;
+
 		return result;
 	};
 	MarkUp.parse = (text, config) => {
 		var result;
-		result = MarkUp.fullParse(text + '\n', config);
+		result = MarkUp.fullParse('\n' + text + '\n', config);
 		if (!result) return '';
 		return result.content;
 	};

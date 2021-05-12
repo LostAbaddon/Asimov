@@ -1905,7 +1905,15 @@
 		while (changed) {
 			changed = false;
 			content = content.replace(/\%([\w \-]+?)\%/g, (match, mark) => {
-				var word = caches[mark]
+				var word = caches[mark];
+				if (!!word) {
+					changed = true;
+					return word;
+				}
+				return match;
+			});
+			content = content.replace(/\%<span class="english">([\w \-]+?)(<\/span>\%|\%<\/span>)/g, (match, mark) => {
+				var word = caches[mark];
 				if (!!word) {
 					changed = true;
 					return word;
@@ -1920,6 +1928,14 @@
 		while (changed) {
 			changed = false;
 			content = content.replace(/\%([\w \-]+?)\%/g, (match, mark) => {
+				var word = caches[SymHidden][mark.toLowerCase()];
+				if (!!word) {
+					changed = true;
+					return word;
+				}
+				return match;
+			});
+			content = content.replace(/\%<span class="english">([\w \-]+?)(<\/span>\%|\%<\/span>)/g, (match, mark) => {
 				var word = caches[SymHidden][mark.toLowerCase()];
 				if (!!word) {
 					changed = true;
@@ -2158,11 +2174,17 @@
 
 		// 恢复保留字
 		text = text.map(content => {
-			return content.replace(/\%([\w \-]+?)\%/g, (match, mark) => {
+			content = content.replace(/\%([\w \-]+?)\%/g, (match, mark) => {
 				var word = ReversePreserveWords[mark.toLowerCase()];
 				if (!!word) return word;
 				return match;
 			});
+			content = content.replace(/\%<span class="english">([\w \-]+?)(<\/span>\%|\%<\/span>)/g, (match, mark) => {
+				var word = ReversePreserveWords[mark.toLowerCase()];
+				if (!!word) return word;
+				return match;
+			});
+			return content;
 		});
 
 		// 实现引用块

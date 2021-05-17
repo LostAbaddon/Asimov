@@ -685,7 +685,11 @@
 		var codeSection = [];
 		total = codeBlocks.length;
 		for (let i = 0; i < total; i += 2) {
-			codeSection.push([codeBlocks[i][0], codeBlocks[i + 1][0]]);
+			let cb1 = codeBlocks[i], cb2 = codeBlocks[i + 1];
+			if (!cb1 || !cb2) break;
+			cb1 = cb1[0];
+			cb2 = cb2[0];
+			codeSection.push([cb1, cb2]);
 		}
 		codeSection.forEach(block => {
 			var lineS = contents[block[0]];

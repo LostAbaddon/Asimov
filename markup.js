@@ -2474,8 +2474,116 @@
 		return [[content], false];
 	};
 
+	MarkUp.plaintextReverse = (content) => {
+		content = content.replace(/<!.*?>/g, '');
+		content = content.replace(/<(\/?\w+).*?>/g, (match, tag) => {
+			tag = tag.toLowerCase();
+			// 处理超链接，移除无用属性
+			if (tag === 'a') {
+				let m = match.match(/href=('|")(.*?)\1/i);
+				if (!m) return '<a>';
+				m = m[2];
+				if (!m) return '<a>';
+				return '<a src="' + m + '">'
+			}
+			// 处理图片，移除无用属性
+			else if (tag === 'img') {
+				let m = match.match(/src=('|")(.*?)\1/i);
+				if (!m) return '<img>';
+				m = m[2];
+				if (!m) return '<img>';
+				return '<img src="' + m + '">'
+			}
+			// 非P的段落标记全部处理为段落
+			else if (['div', 'article', 'section', 'aside', 'nav', 'footer', 'header', 'foot'].includes(tag.replace('/', ''))) {
+				if (tag.indexOf('/') === 0) return '</p>';
+				return '<p>';
+			}
+			else return '<' + tag + '>';
+		});
+		content = content.replace(/<\/?(html|head|body|span|lable|nobr)>/gi, ''); // 去除无用标签
+		while (true) {
+			let ctx = content;
+			ctx = ctx.replace(/<(.*?)>(<\1>)*/gi, (match, tag) => '<' + tag + '>'); // 合并同类标签
+			ctx = ctx.replace(/<(.*?)>[ 　\t\n\r]*<\/\1>/gi, ''); // 去除空标签
+			ctx = ctx.replace(/(<(h\d|blockquote|li|pre)>)(<p>)+/gi, (match, head) => head); // 去除标题内的段落标记
+			ctx = ctx.replace(/(<\/p>)+(<\/(h\d|blockquote|li|pre)>)/gi, (match, p, head) => head);
+			if (ctx === content) break;
+			content = ctx;
+		}
+		// 生成MarkUp标记
+		// 先处理段内标记
+		content = content.replace(/<\/?(b|strong)>/gi, '**');
+		content = content.replace(/<\/?(i|em)>/gi, '*');
+		content = content.replace(/<\/?sup>/gi, '^');
+		content = content.replace(/<\/?sub>/gi, '_');
+		content = content.replace(/<\/?u>/gi, '__');
+		content = content.replace(/<\/?(del|strike)>/gi, '~~');
+		content = content.replace(/<\/?code>/gi, '`');
+		content = content.replace(/<a src=('|")(.*?)\1>(.*?)<\/a>/gi, (match, none, url, title) => {
+			if (!url) return title;
+			return '[' + title + '](' + url + ')';
+		});
+		content = content.replace(/<img src=('|")(.*?)\1>/gi, (match, none, url) => {
+			if (!url) return '';
+			return '\n![](' + url + ')\n';
+		});
+		// 处理段级标记
+		content = content.replace(/<h(\d)>/gi, (match, level) => String.blank(level.length * 1, '#') + '\t');
+		content = content.replace(/<p>/gi, '');
+		var isListOrder = false, listIndex = 1;
+		content = content.replace(/<(ul|li|ol)>/gi, (match, tag) => {
+			tag = tag.toLowerCase();
+			if (tag === 'ol') {
+				isListOrder = true;
+				listIndex = 1;
+				return '';
+			}
+			if (tag === 'ul') {
+				isListOrder = false;
+				listIndex = 1;
+				return '';
+			}
+			if (isListOrder) {
+				match = listIndex + '.\t';
+				listIndex ++;
+				return match
+			}
+			else {
+				return '-\t';
+			}
+		});
+		isListOrder = false;
+		content = content.replace(/<(pre|\/pre|\/p)>/gi, (match, tag) => {
+			tag = tag.toLowerCase();
+			if (tag === 'pre') {
+				isListOrder = true;
+				return '``';
+			}
+			else if (tag === '/code') {
+				isListOrder = false;
+				return '``';
+			}
+			if (isListOrder) return '\n';
+			return '\n\n';
+		});
+		content = content.replace(/<\/(h\d)>/gi, '\n\n');
+		content = content.replace(/<\/?br\/?>/gi, '\n');
+		content = content.replace(/<\/(li|ul|ol)>/gi, '\n');
+		content = content.replace(/<(blockquote)>/gi, '>\t');
+		content = content.replace(/<\/(blockquote)>/gi, '\n\n\n');
+		content = content.replace(/<\/?hr\/?>/gi, '\n----\n\n');
+		// 去除无效标签
+		content = content.replace(/<.*?>/gi, '');
+		// 去除前后空行
+		content = content.replace(/(^[\n\r]+|[\n\r]+$)/gi, '');
+		// console.log(content);
+		return content;
+	};
 	MarkUp.reverse = (ele, config, outmost=true) => {
 		if (!ele) return '';
+		if (config === 'plain' || config === 'plaintext') return MarkUp.plaintextReverse(ele);
+
 		config = config || {};
 		config.__level = 0;
 		config.__prefix = '';

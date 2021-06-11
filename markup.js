@@ -2529,7 +2529,12 @@
 			return '\n![](' + url + ')\n';
 		});
 		// 处理段级标记
-		content = content.replace(/<h(\d)>/gi, (match, level) => String.blank(level.length * 1, '#') + '\t');
+		content = content.replace(/<h(\d)>/gi, (match, level) => {
+			var len = level.length;
+			var tag = '';
+			for (let i = 0; i < len; i ++) tag += '#';
+			return tag + '\t';
+		});
 		content = content.replace(/<p>/gi, '');
 		var isListOrder = false, listIndex = 1;
 		content = content.replace(/<(ul|li|ol)>/gi, (match, tag) => {

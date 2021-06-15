@@ -1409,7 +1409,7 @@
 						dataList[lineNum][c] = result;
 						result = result + '';
 					}
-					catch {
+					catch (err) {
 						result = '';
 					}
 					row[c] = result;
@@ -2012,7 +2012,8 @@
 		if (!!doc.metas.date) {
 			try {
 				doc.metas.date = (new Date(doc.metas.date)).getTime();
-			} catch {
+			}
+			catch (err) {
 				delete doc.metas.date;
 			}
 		}
@@ -2613,7 +2614,7 @@
 	try {
 		window.MarkUp = MarkUp;
 	}
-	catch {
+	catch (err) {
 		try {
 			global.MarkUp = MarkUp;
 		}

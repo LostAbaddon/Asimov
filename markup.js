@@ -2476,7 +2476,10 @@
 	};
 
 	MarkUp.plaintextReverse = (content) => {
-		content = content.replace(/<!.*?>/g, '');
+		content = content.replace(/\r/g, '');
+		content = content.replace(/<!(.*?|\s*?)*?>/g, '');
+		content = content.replace(/<xml(.*?|\s*?)*?>[\w\W]*?<\/xml>/gi, '');
+		content = content.replace(/<style(.*?|\s*?)*?>[\w\W]*?<\/style>/gi, '');
 		content = content.replace(/<(\/?\w+).*?>/g, (match, tag) => {
 			tag = tag.toLowerCase();
 			// 处理超链接，移除无用属性
@@ -2502,12 +2505,16 @@
 			}
 			else return '<' + tag + '>';
 		});
-		content = content.replace(/<\/?(html|head|body|span|lable|nobr)>/gi, ''); // 去除无用标签
+		content = content.replace(/<p([ \s](.*?))*?>/gi, '<p>');
+		content = content.replace(/<\/?(html|head|body|span|lable|nobr|link|meta|w:\w*?|w|xml|o|m|style)([ \s](.*?))*?>/gi, ''); // 去除无用标签
 		while (true) {
 			let ctx = content;
-			ctx = ctx.replace(/<(.*?)>(<\1>)*/gi, (match, tag) => '<' + tag + '>'); // 合并同类标签
-			ctx = ctx.replace(/<(.*?)>[ 　\t\n\r]*<\/\1>/gi, ''); // 去除空标签
-			ctx = ctx.replace(/(<(h\d|blockquote|li|pre)>)(<p>)+/gi, (match, head) => head); // 去除标题内的段落标记
+			ctx = ctx.replace(/<(.*?)( .*?)*>(<\1( .*?)*>)*/gi, (match, tag) => '<' + tag + '>'); // 合并同类标签
+			ctx = ctx.replace(/<(.*?)( .*?)*>[ 　\s]*<\/\1>/gi, ''); // 去除空标签
+			// 去除标题内的段落标记
+			ctx = ctx.replace(/<(h\d|blockquote|li|pre)([ \s](.*?))*?>(<p([ \s](.*?))*?>)*/gi, (match, head) => {
+				return '<' + head + '>';
+			});
 			ctx = ctx.replace(/(<\/p>)+(<\/(h\d|blockquote|li|pre)>)/gi, (match, p, head) => head);
 			if (ctx === content) break;
 			content = ctx;

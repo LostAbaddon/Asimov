@@ -74,8 +74,8 @@ MarkUp.addExtension({
 				if (isInner) {
 					ui = ui + '#' + link.substr(1, link.length) + '">';
 				}
-				else if (link.indexOf('@') > 1) {
-					ui = ui + 'mailto:' + link + '">';
+				else if (link.indexOf('@') > 1 && !link.match(/^(ht|f)tps?:/i)) {
+					ui = ui + 'mailto:' + link.replace(/^mailto:/i, '') + '">';
 				}
 				else if (first === '.' || first === '\\' || first === '/' || first === '#') {
 					ui = ui + link + '">';

@@ -2,13 +2,13 @@
  *	Title: MarkUp Parser
  *	Author: LostAbaddon
  *	Email: LostAbaddon@gmail.com
- *	Version: 1.1.1
- *	Date: 2021.04.07
+ *	Version: 1.1.2
+ *	Date: 2022.12.13
  */
 
 (() => {
 	const SymHidden = Symbol('HIDDEN');
-	const MetaWords = ['GOD', 'THEONE', 'TITLE', 'AUTHOR', 'EMAIL', 'DESCRIPTION', 'STYLE', 'SCRIPT', 'DATE', 'KEYWORD', 'GLOSSARY', 'TOC', 'REF', 'LINK', 'IMAGES', 'VIDEOS', 'AUDIOS', 'ARCHOR', 'SHOWTITLE', 'SHOWAUTHOR', 'RESOURCES'];
+	const MetaWords = ['GOD', 'THEONE', 'TITLE', 'AUTHOR', 'EMAIL', 'DESCRIPTION', 'STYLE', 'SCRIPT', 'DATE', 'UPDATE', 'PUBLISH', 'KEYWORD', 'GLOSSARY', 'TOC', 'REF', 'LINK', 'IMAGES', 'VIDEOS', 'AUDIOS', 'ARCHOR', 'SHOWTITLE', 'SHOWAUTHOR', 'RESOURCES'];
 	const PreservedKeywords = ['toc', 'glossary', 'resources', 'images', 'videos', 'audios'];
 	const ParagraphTags = ['article', 'section', 'div', 'p', 'header', 'footer', 'aside', 'ul', 'ol', 'li', 'blockquote', 'pre', 'figure', 'figcaption'];
 	const CodeBlockKeyWords = {
@@ -1649,10 +1649,32 @@
 					if (!!doc.metas.email) ui += '</a>';
 					ui += '</p>';
 				}
-				if (!!doc.metas.date) {
-					ui += '<p class="author date">';
-					let date = doc.metas.date * 1;
-					if (isNaN(date)) date = doc.metas.date;
+				if (!!doc.metas.publish) {
+					ui += '<p class="author date publish">';
+					let date = doc.metas.publish * 1;
+					if (isNaN(date)) date = doc.metas.publish;
+					else {
+						date = new Date(date);
+						let y = date.getYear() + 1900;
+						let m = date.getMonth() + 1;
+						if (m < 10) m = '0' + m;
+						let d = date.getDate();
+						if (d < 10) d = '0' + d;
+						let h = date.getHours();
+						if (h < 10) h = '0' + h;
+						let n = date.getMinutes();
+						if (n < 10) n = '0' + n;
+						let s = date.getSeconds();
+						if (s < 10) s = '0' + s;
+						date = y + '/' + m + '/' + d + ' ' + h + ':' + n + ':' + s;
+					}
+					ui += date;
+					ui += '</p>';
+				}
+				if (!!doc.metas.update) {
+					ui += '<p class="author date update">';
+					let date = doc.metas.update * 1;
+					if (isNaN(date)) date = doc.metas.update;
 					else {
 						date = new Date(date);
 						let y = date.getYear() + 1900;
@@ -1985,7 +2007,9 @@
 				else if (key === '作者') key = 'author';
 				else if (key === '简介') key = 'description';
 				else if (key === '关键词') key = 'keyword';
-				else if (key === '更新') key = 'date';
+				else if (key === '发布') key = 'publish';
+				else if (key === '更新') key = 'update';
+				else if (key === 'date') key = 'update';
 				else key = key.toLowerCase();
 				if (!MetaWords.includes(key)) return match;
 				nonStop = true;
@@ -2009,13 +2033,25 @@
 		else metas.toc = undefined;
 		doc.metas = metas;
 		doc.metas.keyword = getKeywords(doc.metas.keyword);
-		if (!!doc.metas.date) {
+		if (!!doc.metas.update) {
 			try {
-				doc.metas.date = (new Date(doc.metas.date)).getTime();
+				doc.metas.update = (new Date(doc.metas.update)).getTime();
 			}
 			catch (err) {
-				delete doc.metas.date;
+				delete doc.metas.update;
 			}
+		}
+		if (!!doc.metas.publish) {
+			try {
+				doc.metas.publish = (new Date(doc.metas.publish)).getTime();
+			}
+			catch (err) {
+				delete doc.metas.publish;
+			}
+		}
+		if (!!doc.metas.update && !doc.metas.publish) {
+			doc.metas.publish = doc.metas.update;
+			delete doc.metas.update;
 		}
 		doc.metas.god = doc.metas.theone = '<a href="mailto:lostabaddon@gmail.com">LostAbaddon</a>';
 		if (doc.metas.script) {
@@ -2096,6 +2132,7 @@
 			.replace(/\n作者[:：][ 　\t]*/gi, '\n')
 			.replace(/\n简介[:：][ 　\t]*/gi, '\n')
 			.replace(/\n关键词[:：][ 　\t]*/gi, '\n')
+			.replace(/\n发布[:：][ 　\t]*/gi, '\n')
 			.replace(/\n更新[:：][ 　\t]*/gi, '\n')
 		;
 		MetaWords.forEach(key => {
@@ -2236,7 +2273,8 @@
 		result.meta.author = docTree.metas.author;
 		result.meta.email = docTree.metas.email;
 		result.meta.description = docTree.metas.description;
-		result.meta.update = docTree.metas.date;
+		result.meta.publish = docTree.metas.publish;
+		result.meta.update = docTree.metas.update;
 		result.meta.keywords = docTree.metas.keyword.map(kw => kw);
 		if (!!docTree.metas.others) result.meta.others = docTree.metas.others;
 

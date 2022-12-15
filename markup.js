@@ -456,10 +456,12 @@
 				caches[key] = context;
 				context = '%' + key + '%';
 			}
+
 			return context;
 		});
 		doc.parseLevel --;
 		if (doc.parseLevel > 0) sections = sections.join('');
+
 		return sections;
 	};
 
@@ -2119,6 +2121,7 @@
 		return text;
 	};
 
+	// 将MarkUp解析为HTML
 	MarkUp.fullParse = (text, config) => {
 		var docTree = {
 			finals: {},
@@ -2513,6 +2516,7 @@
 		return [[content], false];
 	};
 
+	// 将HTML逆向表达为MarkUp
 	MarkUp.plaintextReverse = (content) => {
 		content = content.replace(/\r/g, '');
 		content = content.replace(/<!(.*?|\s*?)*?>/g, '');
@@ -2644,6 +2648,26 @@
 		content = content.join('\n');
 		content = content.replace(/\n{2,}/g, '\n\n');
 		return content;
+	};
+
+	// 将MarkUp转换为无格式文本
+	MarkUp.fullPlainify = (text, config) => {
+		var result = MarkUp.fullParse(text, config);
+		// 将格式去除
+		result.content = result.content.replace(/<\/(article|section|div|p|header|footer|aside|ul|ol|li|blockquote|pre|figure|figcaption)>/gi, '\n')
+			.replace(/<br\/?>/gi, '\n')
+			.replace(/\$\$+/gi, '\n');
+		while (true) {
+			let ctx = result.content.replace(/<\/?.+?\/?>/gi, '');
+			if (ctx === result.content) break;
+			result.content = ctx;
+		}
+		result.content = result.content.replace(/\n\n+/gi, '\n')
+			.replace(/\n+$/, '');
+		return result;
+	};
+	MarkUp.plainify = (text, config) => {
+		return MarkUp.fullPlainify(text, config).content;
 	};
 
 	MarkUp.parseLine = parseLine;

@@ -459,6 +459,7 @@
 
 			return context;
 		});
+
 		doc.parseLevel --;
 		if (doc.parseLevel > 0) sections = sections.join('');
 
@@ -2001,24 +2002,14 @@
 		var nonStop = true;
 
 		// 解析文档元数据
-		while (nonStop) {
-			nonStop = false;
-			text = text.replace(/\n([A-Z\u0800-\uffff]+?) *[:：] *([\w\W]*?)\n/, (match, key, value) => {
-				if (value.length === 0) return match;
-				if (key === '标题') key = 'title';
-				else if (key === '作者') key = 'author';
-				else if (key === '简介') key = 'description';
-				else if (key === '关键词') key = 'keyword';
-				else if (key === '发布') key = 'publish';
-				else if (key === '更新') key = 'update';
-				else if (key === 'date') key = 'update';
-				else key = key.toLowerCase();
-				if (!MetaWords.includes(key)) return match;
-				nonStop = true;
+		MetaWords.forEach(key => {
+			var reg = new RegExp('(^|\\n)' + key + '[:：][ 　\\t]*([^\\n]*?)(\\n|$)', 'gi');
+			text = text.replace(reg, (match, head, value, tail) => {
 				metas[key] = value;
-				return '\n';
+				return head + tail;
 			});
-		}
+		});
+
 		if (!!metas.showtitle && ['on', 'yes', 'true'].includes(metas.showtitle.toLowerCase())) metas.showtitle = true;
 		else metas.showtitle = undefined;
 		if (!!metas.glossary && ['on', 'yes', 'true'].includes(metas.glossary.toLowerCase())) metas.glossary = true;
@@ -2130,6 +2121,7 @@
 
 		config = config || {};
 
+		// 去除文档元数据
 		var wordCount = text
 			.replace(/\n标题[:：][ 　\t]*/gi, '\n')
 			.replace(/\n作者[:：][ 　\t]*/gi, '\n')
@@ -2139,13 +2131,14 @@
 			.replace(/\n更新[:：][ 　\t]*/gi, '\n')
 		;
 		MetaWords.forEach(key => {
-			var reg = new RegExp('\n' + key + '[:：][ 　\\t]*', 'gi');
-			wordCount = wordCount.replace(reg, '\n');
+			var reg = new RegExp('(^|\\n)' + key + '[:：][ 　\\t]*[^\\n]*?(\\n|$)', 'gi');
+			wordCount = wordCount.replace(reg, '');
 		});
 		PreservedKeywords.forEach(key => {
 			var reg = new RegExp('\\[' + key + '\\]', 'gi');
 			wordCount = wordCount.replace(reg, '');
 		});
+		// 去除超链接等文档元素中的非文字部分
 		while (true) {
 			let next = wordCount
 				.replace(/\[(.*?)\][ 　\t]*\[.*?\]/g, (match, inner) => inner)
@@ -2157,6 +2150,7 @@
 			if (wordCount === next) break;
 			wordCount = next;
 		}
+		// 统计字数，英文以单词计
 		wordCount = wordCount.match(/[\u4e00-\u9fa5]|[a-zA-Z0-9]+/gi) || '';
 		wordCount = wordCount.length || 0;
 
@@ -2632,7 +2626,6 @@
 		content = content.replace(/<.*?>/gi, '');
 		// 去除前后空行
 		content = content.replace(/(^[\n\r]+|[\n\r]+$)/gi, '');
-		// console.log(content);
 		return content;
 	};
 	MarkUp.reverse = (ele, config, outmost=true) => {
@@ -2652,11 +2645,17 @@
 
 	// 将MarkUp转换为无格式文本
 	MarkUp.fullPlainify = (text, config) => {
+		PreservedKeywords.forEach(key => {
+			var reg = new RegExp('\\[' + key + '\\]', 'gi');
+			text = text.replace(reg, '');
+		});
+
 		var result = MarkUp.fullParse(text, config);
 		// 将格式去除
-		result.content = result.content.replace(/<\/(article|section|div|p|header|footer|aside|ul|ol|li|blockquote|pre|figure|figcaption)>/gi, '\n')
+		result.content = result.content.replace(/<\/(article|section|div|p|header|footer|aside|ul|ol|li|blockquote|pre|figure|figcaption|h\d)>/gi, '\n')
 			.replace(/<br\/?>/gi, '\n')
 			.replace(/\$\$+/gi, '\n');
+		result.content = result.content.replace(/\/?<(br|hr)\/?>/gi, '\n')
 		while (true) {
 			let ctx = result.content.replace(/<\/?.+?\/?>/gi, '');
 			if (ctx === result.content) break;

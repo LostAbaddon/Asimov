@@ -11,6 +11,7 @@
 	const MetaWords = ['GOD', 'THEONE', 'TITLE', 'AUTHOR', 'EMAIL', 'DESCRIPTION', 'STYLE', 'SCRIPT', 'DATE', 'UPDATE', 'PUBLISH', 'KEYWORD', 'GLOSSARY', 'TOC', 'REF', 'LINK', 'IMAGES', 'VIDEOS', 'AUDIOS', 'ARCHOR', 'SHOWTITLE', 'SHOWAUTHOR', 'RESOURCES'];
 	const PreservedKeywords = ['toc', 'glossary', 'resources', 'images', 'videos', 'audios'];
 	const ParagraphTags = ['article', 'section', 'div', 'p', 'header', 'footer', 'aside', 'ul', 'ol', 'li', 'blockquote', 'pre', 'figure', 'figcaption'];
+	const TimeStampKeywords = ['date', 'update', 'publish'];
 	const CodeBlockKeyWords = {
 		system: /(.?)(if|else|for|while|do|continue|break|return|new|delete|try|catch|final|then|async|await|yield|null|undefined|nil|import|export|module|require|default)(.?)/g,
 		function: /(.?)(const|var|let|function|class|Class|Number|String|Boolean|Integer|Float|Promise|Proxy|Array|ArrayBuffer|AysncFunction|Object|Function|Uint8Array|Uint16Array|Uint64Array|Int8Array|Int16Array|Int64Array|Buffer|BigInt)(.?)/g,
@@ -1774,8 +1775,13 @@
 					if (lang === 'zh') content = content.join('、');
 					else content = content.join(', ');
 				}
-				section = section.replace(new RegExp('%' + key + '%', 'gi'), match => {
-					return content;
+				section = section.replace(new RegExp('%' + key + '%(\{.*?\})?', 'gi'), (match, param) => {
+					param = param || 'YYYY/MM/DD';
+					var output = match;
+					if (TimeStampKeywords.includes(key.toLowerCase())) {
+						output = generateTimeStamp(content, param.replace(/^\{|\}$/g, ''));
+					}
+					return output;
 				});
 			});
 
@@ -1907,6 +1913,43 @@
 		});
 		ui += '</ul>';
 		return ui;
+	};
+	const generateTimeStamp = (stamp, format) => {
+		var date = new Date(stamp);
+		var year = date.getFullYear();
+		var month = date.getMonth() + 1;
+		var day = date.getDate();
+		var hour = date.getHours();
+		var minute = date.getMinutes();
+		var second = date.getSeconds();
+		var millisec = date.getMilliseconds();
+		var hint;
+		hint = format.match(/Y+/);
+		if (!!hint) format = convertTimeStamp(format, hint[0], year, hint[0].length > 2 ? 4 : 2);
+		hint = format.match(/M+/);
+		if (!!hint) format = convertTimeStamp(format, hint[0], month);
+		hint = format.match(/D+/);
+		if (!!hint) format = convertTimeStamp(format, hint[0], day);
+		hint = format.match(/h+/);
+		if (!!hint) format = convertTimeStamp(format, hint[0], hour);
+		hint = format.match(/m+/);
+		if (!!hint) format = convertTimeStamp(format, hint[0], minute);
+		hint = format.match(/s+/);
+		if (!!hint) format = convertTimeStamp(format, hint[0], second);
+		hint = format.match(/ms/);
+		if (!!hint) format = convertTimeStamp(format, hint[0], millisec, 3);
+		return format;
+	};
+	const convertTimeStamp = (stamp, hint, value, max=2) => {
+		var len = hint.length;
+		valur = '' + value;
+		while (value.length < len) {
+			value = '0' + value;
+		}
+		if (value.length > max) {
+			value = value.substring(value.length - max);
+		}
+		return stamp.replace(hint, value);
 	};
 
 	// 保留字符处理

@@ -1777,7 +1777,7 @@
 				}
 				section = section.replace(new RegExp('%' + key + '%(\{.*?\})?', 'gi'), (match, param) => {
 					param = param || 'YYYY/MM/DD';
-					var output = match;
+					var output = content;
 					if (TimeStampKeywords.includes(key.toLowerCase())) {
 						output = generateTimeStamp(content, param.replace(/^\{|\}$/g, ''));
 					}

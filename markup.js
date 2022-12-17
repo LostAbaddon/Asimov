@@ -9,6 +9,14 @@
 (() => {
 	const SymHidden = Symbol('HIDDEN');
 	const MetaWords = ['GOD', 'THEONE', 'TITLE', 'AUTHOR', 'EMAIL', 'DESCRIPTION', 'STYLE', 'SCRIPT', 'DATE', 'UPDATE', 'PUBLISH', 'KEYWORD', 'GLOSSARY', 'TOC', 'REF', 'LINK', 'IMAGES', 'VIDEOS', 'AUDIOS', 'ARCHOR', 'SHOWTITLE', 'SHOWAUTHOR', 'RESOURCES'];
+	const MetaAlias = {
+		'标题': 'title',
+		'作者': 'author',
+		'简介': 'description',
+		'关键词': 'keywords',
+		'发布': 'publish',
+		'更新': 'update',
+	};
 	const PreservedKeywords = ['toc', 'glossary', 'resources', 'images', 'videos', 'audios'];
 	const ParagraphTags = ['article', 'section', 'div', 'p', 'header', 'footer', 'aside', 'ul', 'ol', 'li', 'blockquote', 'pre', 'figure', 'figcaption'];
 	const TimeStampKeywords = ['date', 'update', 'publish'];
@@ -2045,6 +2053,14 @@
 		var nonStop = true;
 
 		// 解析文档元数据
+		for (let name in MetaAlias) {
+			let key = MetaAlias[name];
+			var reg = new RegExp('(^|\\n)' + name + '[:：][ 　\\t]*([^\\n]*?)(\\n|$)', 'gi');
+			text = text.replace(reg, (match, head, value, tail) => {
+				metas[key] = value;
+				return head + tail;
+			});
+		}
 		MetaWords.forEach(key => {
 			var reg = new RegExp('(^|\\n)' + key + '[:：][ 　\\t]*([^\\n]*?)(\\n|$)', 'gi');
 			text = text.replace(reg, (match, head, value, tail) => {

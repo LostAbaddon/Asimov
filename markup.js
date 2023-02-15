@@ -2084,7 +2084,7 @@
 		if (!!metas.toc && ['on', 'yes', 'true'].includes(metas.toc.toLowerCase())) metas.toc = true;
 		else metas.toc = undefined;
 		doc.metas = metas;
-		doc.metas.keyword = getKeywords(doc.metas.keyword);
+		doc.metas.keywords = getKeywords(doc.metas.keywords);
 		if (!!doc.metas.update) {
 			try {
 				doc.metas.update = (new Date(doc.metas.update)).getTime();
@@ -2331,7 +2331,7 @@
 		result.meta.description = docTree.metas.description;
 		result.meta.publish = docTree.metas.publish;
 		result.meta.update = docTree.metas.update;
-		result.meta.keywords = docTree.metas.keyword.map(kw => kw);
+		result.meta.keywords = docTree.metas.keywords.map(kw => kw);
 		if (!!docTree.metas.others) result.meta.others = docTree.metas.others;
 
 		result.terminology = {};
